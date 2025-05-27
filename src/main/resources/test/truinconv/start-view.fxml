@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<StackPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="test.truinconv.StartViewController">
+    <BorderPane>
+        <center>
+            <VBox alignment="CENTER"
+                  spacing="24">
+                <Label fx:id="title"
+                       alignment="CENTER"
+                       text="TruInConv"
+                       maxWidth="Infinity"
+                       wrapText="true"
+                       styleClass="title-label"/>
+                <TilePane fx:id="buttonPane"
+                          alignment="CENTER"
+                          hgap="36"
+                          vgap="36"
+                          prefColumns="3">
+                    <padding>
+                        <Insets top="20" right="20" bottom="20" left="20"/>
+                    </padding>
+                    <Button fx:id="imageButton" text="Image" styleClass="circle-btn"/>
+                    <Button fx:id="audioButton" text="Audio" styleClass="circle-btn"/>
+                    <Button fx:id="videoButton" text="Video" styleClass="circle-btn"/>
+                </TilePane>
+            </VBox>
+        </center>
+        <top>
+            <HBox alignment="TOP_RIGHT">
+                <Region HBox.hgrow="ALWAYS"/>
+                <ToggleButton fx:id="themeToggleBtn" styleClass="theme-toggle-btn" focusTraversable="false">
+                    <graphic>
+                        <FontIcon iconLiteral="mdi2m-moon-waning-crescent" iconColor="#888" iconSize="24"/>
+                    </graphic>
+                </ToggleButton>
+            </HBox>
+        </top>
+        <padding>
+            <Insets top="15" right="25" bottom="15" left="25"/>
+        </padding>
+    </BorderPane>
+</StackPane>

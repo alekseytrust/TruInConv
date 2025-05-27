@@ -1,0 +1,124 @@
+.root,
+.stack-pane {
+    -fx-background-color: -app-background;
+    -fx-font-family: 'Segoe UI', 'Arial', sans-serif;
+}
+
+/* 
+-- LIGHT THEME (Default) --
+Sets color variables for backgrounds, text, and button styles.
+Applies a soft gradient background and configures accent colors suitable for light UI.
+*/
+.root {
+    /* JavaFX CSS custom properties for light theme appearance */
+    -app-background: linear-gradient(
+        from 0% 0% to 100% 100%,
+        #fdf6e3 0%,
+        #f0f4fd 65%,
+        #fbfaff 100%
+    );
+    -app-foreground: #21243d;
+    -circle-btn-bg: #fffbe6;
+    -circle-btn-border: #b7e0fa;
+    -circle-btn-fg: #3d3246;
+    -circle-btn-hover: #e3f2fd;
+}
+
+/* 
+-- DARK THEME --
+Overrides core color variables for backgrounds, text, and button styles.
+Applies a darker gradient background and matching accent colors for a dark mode interface.
+*/
+.root.dark-mode {
+    -app-background: linear-gradient(
+        from 0% 0% to 100% 100%,
+        #202035 60%,
+        #181829 100%
+    );
+    -app-foreground: #f4f4f9;
+    -circle-btn-bg: #29284d;
+    -circle-btn-border: #4b5f92;
+    -circle-btn-fg: #fafafd;
+    -circle-btn-hover: #31316a;
+}
+
+/* 
+Configures visual style for primary title labels.
+Large font size, bold weight, themed text color, and drop shadow for emphasis.
+*/
+.title-label {
+    -fx-font-size: 2.8em;
+    -fx-font-weight: 700;
+    -fx-text-fill: -app-foreground;
+    -fx-padding: 0 0 12 0;
+    /* Subtle gold drop shadow for highlight */
+    -fx-effect: dropshadow(gaussian, #ffd74077, 1.2, 0.09, 0, 2);
+}
+
+/* 
+Styles circular UI buttons with theme-driven colors, rounded borders, 
+drop shadows, and smooth, animated transitions.
+Allows for flexible min/max size rather than strictly fixed sizes.
+*/
+.circle-btn {
+    -fx-background-color: -circle-btn-bg;
+    -fx-text-fill: -circle-btn-fg;
+    -fx-background-radius: 50%;
+    -fx-border-radius: 50%;
+    -fx-border-color: -circle-btn-border;
+    -fx-border-width: 2;
+    -fx-font-size: 1.2em;
+    -fx-effect: dropshadow(gaussian, #50e3c299, .3, .05, 0, 1);
+    -fx-border-style: solid;
+    -fx-font-weight: 600;
+    -fx-transition: all 0.26s cubic-bezier(.68,-0.55,.27,1.55);
+}
+
+/* 
+Visually scales down button when pressed for interactive feedback.
+*/
+.circle-btn:pressed {
+    -fx-scale-x: 0.97;
+    -fx-scale-y: 0.97;
+}
+
+/* 
+Changes background and applies a gold-tinted drop shadow on hover for interactivity.
+*/
+.circle-btn:hover {
+    -fx-background-color: -circle-btn-hover;
+    -fx-effect: dropshadow(gaussian, #ffd74055, .8, .13, 0, 2);
+}
+
+/* 
+Highlights border and applies cyan drop shadow when button is focused (keyboard navigation).
+*/
+.circle-btn:focused {
+    -fx-effect: dropshadow(gaussian, #0bbefc55, .9, .15, 0.0, 0.0 );
+    -fx-border-color: #0bbefc;
+}
+
+/* 
+Theme toggle button (e.g. for dark/light mode switching) is styled to be transparent,
+with pointer cursor and subtle padding.
+*/
+.theme-toggle-btn {
+    -fx-background-color: transparent;
+    -fx-padding: 0 0 6 0;
+    -fx-cursor: hand;
+}
+
+/* 
+In dark mode, ensures theme icon color remains visible and contrasts with dark background.
+*/
+.root.dark-mode .theme-toggle-btn .ikonli-font-icon {
+    -fx-icon-color: #f4f4f9;
+}
+
+/* 
+Applies smooth transition effects to common UI components for polished 
+animations on property changes (e.g., hover, theme switch, resizing).
+*/
+.root, .circle-btn, .title-label, .theme-toggle-btn {
+    -fx-transition: all 0.26s cubic-bezier(.68,-0.55,.27,1.55);
+}
