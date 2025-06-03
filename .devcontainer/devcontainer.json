@@ -1,0 +1,37 @@
+{
+  "name": "TruInConv Codespace",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/desktop-lite:1": {
+      "password": "password123",
+      "webPort": "6080",
+      "vncPort": "5901"
+    }
+  },
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash",
+    // Optional: explicitly tell VSCode where mvn lives
+    "maven.executable.path": "/usr/local/bin/mvn"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "VisualStudioExptTeam.vscodeintellicode",
+        "VisualStudioExptTeam.intellicode-api-usage-examples"
+      ]
+    }
+  },
+  "containerEnv": {
+    "PATH": "/usr/local/javafx-sdk-21.0.3/bin:${PATH}",
+    "JAVAFX_HOME": "/usr/local/javafx-sdk-21.0.3"
+  },
+  // <-- Run a full Maven build immediately after create
+  "postCreateCommand": "mvn clean install",
+  "remoteUser": "vscode"
+}
