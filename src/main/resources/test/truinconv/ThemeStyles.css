@@ -4,62 +4,280 @@
     -fx-font-family: 'Segoe UI', 'Arial', sans-serif;
 }
 
-/* 
+/*
 -- LIGHT THEME (Default) --
 Sets color variables for backgrounds, text, and button styles.
 Applies a soft gradient background and configures accent colors suitable for light UI.
 */
 .root {
-    /* JavaFX CSS custom properties for light theme appearance */
+    /* Core colors */
     -app-background: linear-gradient(
-        from 0% 0% to 100% 100%,
-        #fdf6e3 0%,
-        #f0f4fd 65%,
-        #fbfaff 100%
+            from 0% 0% to 100% 100%,
+            #fdf6e3 0%,
+            #f0f4fd 65%,
+            #fbfaff 100%
     );
     -app-foreground: #21243d;
+
+    /* Button styles */
     -circle-btn-bg: #fffbe6;
     -circle-btn-border: #b7e0fa;
     -circle-btn-fg: #3d3246;
     -circle-btn-hover: #e3f2fd;
+
+    /* Combo box styles */
+    -combo-box-bg: #ffffff;
+    -combo-box-border: #b7e0fa;
+    -combo-box-text: #21243d;
+    -combo-box-arrow: #3d3246;
+    -combo-box-hover: #e3f2fd;
+
+    /* Table styles */
+    -table-bg: #ffffff;
+    -table-header-bg: #e3f2fd;
+    -table-border: #b7e0fa;
+    -table-cell-bg: #ffffff;
+    -table-alternate-bg: #f8fbff;
+    -table-selection-bg: #e3f2fd;
+    -table-text: #21243d;
+
+    /* Drop zone styles */
+    -drop-zone-bg: #f0f8ff;
+    -drop-zone-border: #b7e0fa;
+    -drop-zone-text: #21243d;
+    -drop-zone-active-bg: #e0f0ff;
+    -drop-zone-active-border: #0080ff;
+
+    /* Text field styles */
+    -text-field-bg: #ffffff;
+    -text-field-border: #b7e0fa;
+    -text-field-text: #21243d;
+    -text-field-placeholder: #7b8191;
+
+    /* Icon colors */
+    -arrow-icon-color: #3d3246;
+    -remove-btn-color: #d32f2f;
 }
 
-/* 
+/*
 -- DARK THEME --
 Overrides core color variables for backgrounds, text, and button styles.
 Applies a darker gradient background and matching accent colors for a dark mode interface.
 */
 .root.dark-mode {
+    /* Core colors */
     -app-background: linear-gradient(
-        from 0% 0% to 100% 100%,
-        #202035 60%,
-        #181829 100%
+            from 0% 0% to 100% 100%,
+            #202035 60%,
+            #181829 100%
     );
     -app-foreground: #f4f4f9;
+
+    /* Button styles */
     -circle-btn-bg: #29284d;
     -circle-btn-border: #4b5f92;
     -circle-btn-fg: #fafafd;
     -circle-btn-hover: #31316a;
+
+    /* Combo box styles */
+    -combo-box-bg: #29284d;
+    -combo-box-border: #4b5f92;
+    -combo-box-text: #f4f4f9;
+    -combo-box-arrow: #4b5f92;
+    -combo-box-hover: #31316a;
+
+    /* Table styles */
+    -table-bg: #29284d;
+    -table-header-bg: #31316a;
+    -table-border: #4b5f92;
+    -table-cell-bg: #29284d;
+    -table-alternate-bg: #242440;
+    -table-selection-bg: #31316a;
+    -table-text: #f4f4f9;
+
+    /* Drop zone styles */
+    -drop-zone-bg: #29284d;
+    -drop-zone-border: #4b5f92;
+    -drop-zone-text: #f4f4f9;
+    -drop-zone-active-bg: #31316a;
+    -drop-zone-active-border: #6272a4;
+
+    /* Text field styles */
+    -text-field-bg: #29284d;
+    -text-field-border: #4b5f92;
+    -text-field-text: #f4f4f9;
+    -text-field-placeholder: #a9b1d6;
+
+    /* Icon colors */
+    -arrow-icon-color: #f4f4f9;
+    -remove-btn-color: #ff5252;
 }
 
-/* 
-Configures visual style for primary title labels.
-Large font size, bold weight, themed text color, and drop shadow for emphasis.
-*/
+/* Title label styling */
 .title-label {
     -fx-font-size: 2.8em;
     -fx-font-weight: 700;
     -fx-text-fill: -app-foreground;
     -fx-padding: 0 0 12 0;
-    /* Subtle gold drop shadow for highlight */
     -fx-effect: dropshadow(gaussian, #ffd74077, 1.2, 0.09, 0, 2);
 }
 
-/* 
-Styles circular UI buttons with theme-driven colors, rounded borders, 
-drop shadows, and smooth, animated transitions.
-Allows for flexible min/max size rather than strictly fixed sizes.
-*/
+/* Regular label styling */
+.label {
+    -fx-text-fill: -app-foreground;
+}
+
+/* Format selection section styling */
+.format-selection-container {
+    -fx-padding: 10 0;
+}
+
+.format-label {
+    -fx-font-weight: 600;
+}
+
+/* ComboBox styling */
+.combo-box, .format-combo {
+    -fx-background-color: -combo-box-bg;
+    -fx-border-color: -combo-box-border;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-text-fill: -combo-box-text;
+}
+
+.combo-box .arrow {
+    -fx-background-color: -combo-box-arrow;
+}
+
+.combo-box:hover {
+    -fx-background-color: -combo-box-hover;
+    -fx-border-color: derive(-combo-box-border, 20%);
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -combo-box-text;
+    -fx-background-color: transparent;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -combo-box-bg;
+    -fx-border-color: -combo-box-border;
+}
+
+.combo-box-popup .list-view .list-cell {
+    -fx-text-fill: -combo-box-text;
+    -fx-background-color: -combo-box-bg;
+}
+
+.combo-box-popup .list-view .list-cell:filled:hover {
+    -fx-background-color: -combo-box-hover;
+}
+
+/* Arrow icon between combo boxes */
+.arrow-icon {
+    -fx-icon-color: -arrow-icon-color;
+}
+
+/* Drag and drop zone styling */
+#dropZone {
+    -fx-background-color: -drop-zone-bg;
+    -fx-border-color: -drop-zone-border;
+    -fx-border-style: dashed;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-cursor: hand;
+}
+
+#dropZone:hover {
+    -fx-background-color: -drop-zone-active-bg;
+    -fx-border-color: -drop-zone-active-border;
+    -fx-border-style: solid;
+}
+
+/* Remove the invalid :active pseudo-class */
+/* JavaFX doesn't support standard CSS :active pseudo-class */
+/* Instead, we'll handle the active state in the controller */
+
+#dropZone.drag-over {
+    -fx-background-color: -drop-zone-active-bg;
+    -fx-border-color: -drop-zone-active-border;
+    -fx-border-style: solid;
+}
+
+#dropZoneLabel {
+    -fx-text-fill: -drop-zone-text;
+    -fx-font-size: 1.05em;
+}
+
+/* TableView styling */
+.table-view {
+    -fx-background-color: -table-bg;
+    -fx-border-color: -table-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.table-view .column-header {
+    -fx-background-color: -table-header-bg;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -app-foreground;
+    -fx-font-weight: bold;
+}
+
+.table-view .table-row-cell {
+    -fx-background-color: -table-cell-bg;
+    -fx-border-color: transparent;
+}
+
+.table-view .table-row-cell:odd {
+    -fx-background-color: -table-alternate-bg;
+}
+
+.table-view .table-row-cell:selected {
+    -fx-background-color: -table-selection-bg;
+}
+
+.table-view .table-cell {
+    -fx-text-fill: -table-text;
+    -fx-border-color: transparent;
+}
+
+.table-view .placeholder .label {
+    -fx-text-fill: -app-foreground;
+}
+
+/* Remove button styling */
+.remove-btn {
+    -fx-background-color: transparent;
+}
+
+.remove-btn .ikonli-font-icon {
+    -fx-icon-color: -remove-btn-color;
+}
+
+.remove-btn:hover .ikonli-font-icon {
+    -fx-icon-color: derive(-remove-btn-color, 20%);
+}
+
+/* Text Field styling */
+.text-field, .directory-field {
+    -fx-background-color: -text-field-bg;
+    -fx-text-fill: -text-field-text;
+    -fx-prompt-text-fill: -text-field-placeholder;
+    -fx-border-color: -text-field-border;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-font-size: 1.06em;
+}
+
+/* Directory picker container */
+.directory-picker-container {
+    -fx-padding: 5 0;
+}
+
+/* Circle buttons */
 .circle-btn {
     -fx-background-color: -circle-btn-bg;
     -fx-text-fill: -circle-btn-fg;
@@ -74,51 +292,34 @@ Allows for flexible min/max size rather than strictly fixed sizes.
     -fx-transition: all 0.26s cubic-bezier(.68,-0.55,.27,1.55);
 }
 
-/* 
-Visually scales down button when pressed for interactive feedback.
-*/
 .circle-btn:pressed {
     -fx-scale-x: 0.97;
     -fx-scale-y: 0.97;
 }
 
-/* 
-Changes background and applies a gold-tinted drop shadow on hover for interactivity.
-*/
 .circle-btn:hover {
     -fx-background-color: -circle-btn-hover;
     -fx-effect: dropshadow(gaussian, #ffd74055, .8, .13, 0, 2);
 }
 
-/* 
-Highlights border and applies cyan drop shadow when button is focused (keyboard navigation).
-*/
 .circle-btn:focused {
     -fx-effect: dropshadow(gaussian, #0bbefc55, .9, .15, 0.0, 0.0 );
     -fx-border-color: #0bbefc;
 }
 
-/* 
-Theme toggle button (e.g. for dark/light mode switching) is styled to be transparent,
-with pointer cursor and subtle padding.
-*/
+/* Theme toggle button */
 .theme-toggle-btn {
     -fx-background-color: transparent;
     -fx-padding: 0 0 6 0;
     -fx-cursor: hand;
 }
 
-/* 
-In dark mode, ensures theme icon color remains visible and contrasts with dark background.
-*/
 .root.dark-mode .theme-toggle-btn .ikonli-font-icon {
-    -fx-icon-color: #f4f4f9;
+    -fx-icon-color: #ffd740;
 }
 
-/* 
-Applies smooth transition effects to common UI components for polished 
-animations on property changes (e.g., hover, theme switch, resizing).
-*/
-.root, .circle-btn, .title-label, .theme-toggle-btn {
+/* Apply transitions to all elements for smooth theme changes */
+.root, .circle-btn, .title-label, .theme-toggle-btn,
+.combo-box, .table-view, .table-cell, .text-field, #dropZone, .arrow-icon, .remove-btn {
     -fx-transition: all 0.26s cubic-bezier(.68,-0.55,.27,1.55);
 }

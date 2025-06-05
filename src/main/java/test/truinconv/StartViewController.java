@@ -2,6 +2,7 @@ package test.truinconv;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -19,6 +20,9 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * Handles layout responsiveness, dynamic resizing, and theme switching between dark and light modes.
  * Adjusts button and title sizes based on the window size, updates layout on resize, and manages theme icons and styles.
  */
+import java.io.IOException;
+import java.util.Objects;
+
 public class StartViewController {
 
     // --- FXML-Injected UI Components ---
@@ -56,6 +60,34 @@ public class StartViewController {
     @FXML
     private void initialize() {
         Platform.runLater(this::setup);
+
+        // Add these lines to wire the button actions:
+        imageButton.setOnAction(e -> switchToConversionView(imageButton));
+        audioButton.setOnAction(e -> switchToConversionView(audioButton));
+        videoButton.setOnAction(e -> switchToConversionView(videoButton));
+    }
+
+    /**
+     * Switches the root of the current scene to the conversion view.
+     */
+    private void switchToConversionView(Button sourceButton) {
+        try {
+            FXMLLoader loader = new FXMLLoader(
+                    Objects.requireNonNull(ConversionController.class.getResource("conversion-controller.fxml"))
+            );
+            Parent conversionView = loader.load();
+        
+        // Get the controller and set the title
+        ConversionController controller = loader.getController();
+        controller.setButtonTextAsTitle(sourceButton.getText());
+        
+            // Get the Scene from any current control
+            Scene scene = title.getScene();
+            scene.setRoot(conversionView);
+        } catch (IOException e) {
+            // Handle error (could show alert)
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -143,7 +175,7 @@ public class StartViewController {
      *
      * @param dark {@code true} to enable dark mode, {@code false} for light mode
      */
-    private void toggleTheme(boolean dark) {
+    public void toggleTheme(boolean dark) {
         darkMode = dark;
         Scene scene = themeToggleBtn.getScene();
         if (scene == null) return;
@@ -160,7 +192,7 @@ public class StartViewController {
     /**
      * Updates the theme toggle button's icon and color according to the selected theme.
      */
-    private void updateThemeIcon() {
+    public void updateThemeIcon() {
         if (themeToggleBtn == null) return;
         FontIcon icon;
         if (darkMode)

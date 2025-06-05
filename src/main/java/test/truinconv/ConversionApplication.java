@@ -11,6 +11,20 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
+ * @TODO
+ * Make it so all elements in the Conversion Controller page grow proportionally
+ *  - Also all the elements must be able to fit in the start window size and any window size and not overflow
+ *
+ * @TODO
+ * Fix the theme issue: the theme does not stay between both pages. If you change to dark it doesn't stay that way
+ *  -
+ *
+ */
+
+
+
+
+/**
  * Entry point for the TruInConv JavaFX application.
  * <p>
  * Handles loading the UI, configuring the primary stage, applying a theme,
