@@ -11,6 +11,7 @@ module test.truinconv {
     requires com.fasterxml.jackson.databind;
     requires com.google.gson;
     requires jave.core;
+    requires java.logging;
 
     opens test.truinconv to javafx.fxml;
     exports test.truinconv;

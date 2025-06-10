@@ -11,7 +11,16 @@
            fx:controller="test.truinconv.ConversionController">
     <BorderPane>
         <top>
-            <HBox alignment="TOP_RIGHT">
+            <HBox alignment="TOP_CENTER">
+                <Button fx:id="backButton"
+                        styleClass="theme-toggle-btn"
+                        focusTraversable="false">
+                    <graphic>
+                        <FontIcon iconLiteral="mdi2k-keyboard-backspace"
+                                  iconColor="#888"
+                                  iconSize="24"/>
+                    </graphic>
+                </Button>
                 <Region HBox.hgrow="ALWAYS"/>
                 <ToggleButton fx:id="themeToggleBtn" styleClass="theme-toggle-btn" focusTraversable="false">
                     <graphic>
@@ -31,7 +40,11 @@
                         <Label text="Convert from:" styleClass="format-label"/>
                         <ComboBox fx:id="sourceFormatComboBox" promptText="Select source format" styleClass="format-combo"/>
                     </VBox>
-                    <FontIcon fx:id="arrowIcon" iconLiteral="mdi2a-arrow-right" iconSize="24" styleClass="arrow-icon" />
+                    <Button fx:id="swapButton" styleClass="swap-button" onAction="#onSwapFormats" focusTraversable="false">
+                        <graphic>
+                            <FontIcon fx:id="arrowIcon" iconLiteral="mdi2a-arrow-right" iconSize="24" styleClass="arrow-icon" />
+                        </graphic>
+                    </Button>
                     <VBox alignment="CENTER" spacing="5" styleClass="format-selection">
                         <Label text="Convert to:" styleClass="format-label"/>
                         <ComboBox fx:id="targetFormatComboBox" promptText="Select target format" styleClass="format-combo"/>
@@ -55,7 +68,7 @@
                            VBox.vgrow="ALWAYS">
                     <columns>
                         <TableColumn fx:id="fileNameColumn" text="File Name" />
-                        <TableColumn fx:id="removeButtonColumn" text="" minWidth="60" maxWidth="60" style="-fx-alignment: CENTER_RIGHT;" />
+                        <TableColumn fx:id="removeButtonColumn" text="" minWidth="60" maxWidth="60" style="-fx-alignment: CENTER_LEFT;" />
                     </columns>
                     <placeholder>
                         <Label text="No files added." />
