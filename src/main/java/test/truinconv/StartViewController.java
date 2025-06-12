@@ -3,8 +3,6 @@ package test.truinconv;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -12,153 +10,117 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
-import java.util.Scanner;
-import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Controller for the application's start view.
- * Manages the main menu interface with dynamic layout adaptation and theme support.
+ * Manages the main menu interface with proportional responsive sizing.
  */
 public class StartViewController {
-    
+
     private static final Logger LOGGER = Logger.getLogger(StartViewController.class.getName());
 
     // FXML-injected UI components
     @FXML private Label title;
-    @FXML private Pane buttonPane;
+    @FXML private HBox buttonPane;
     @FXML private Button imageButton;
     @FXML private Button audioButton;
     @FXML private Button videoButton;
     @FXML private ToggleButton themeToggleBtn;
 
     // State management
-    private boolean darkMode = false;
-    private boolean isHorizontalLayout = true;
-    private boolean isLayoutTransitioning = false;
+    private ThemeManager themeManager;
+    private boolean isInitialized = false;
 
-    // Layout configuration organized in nested classes
+    // Layout configuration for proportional scaling
     private static final class LayoutConstants {
-        // Button sizing
+        // Base dimensions - the "ideal" starting size
+        static final double BASE_WINDOW_WIDTH = 600.0;
+        static final double BASE_WINDOW_HEIGHT = 550.0; // Increased by 30px as requested
+        static final double BASE_BUTTON_SIZE = 100.0;
+        static final double BASE_TITLE_SIZE = 44.0; // 2.8em * 16px base
+        static final double BASE_SPACING = 36.0;
+        static final double BASE_THEME_ICON_SIZE = 24.0; // Base theme icon size
+        static final double BASE_THEME_BUTTON_SIZE = 40.0; // Base theme button size
+        
+        // Minimum constraints
         static final double MIN_BUTTON_SIZE = 80.0;
-        static final double MAX_BUTTON_SIZE = 192.0;
+        static final double MIN_TITLE_SIZE = 32.0;
+        static final double MIN_SPACING = 24.0;
+        static final double MIN_THEME_ICON_SIZE = 18.0;
+        static final double MIN_THEME_BUTTON_SIZE = 30.0;
+        static final double MIN_SIDE_MARGIN = 15.0; // 15px minimum from left/right sides
         
-        // Title sizing
-        static final double MIN_TITLE_SIZE = 22.0;
-        static final double MAX_TITLE_SIZE = 44.0;
-        
-        // Spacing and padding
-        static final double BUTTON_SPACING = 36.0;
-        static final double PANE_PADDING = 20.0;
-        static final double BORDER_PANE_PADDING = 50.0; // From FXML: 25 left + 25 right
+        // Layout structure
+        static final double BUTTON_PANE_PADDING = 40.0; // HBox padding (20 * 2)
+        static final double BORDER_PANE_PADDING = 50.0; // BorderPane padding (25 * 2)
         static final double VBOX_SPACING = 24.0;
-        static final double TOP_SECTION_HEIGHT = 50.0;
-        
-        // Layout calculations
+        static final double TOP_SECTION_HEIGHT = 50.0; // Theme toggle area
         static final int BUTTON_COUNT = 3;
-        static final double TITLE_SCALE_FACTOR = 0.06;
-        static final double BUTTON_FONT_SCALE = 0.15;
-        static final double MIN_BUTTON_FONT = 10.0;
-        static final double LAYOUT_BUFFER = 10.0;
-        static final double TITLE_EXTRA_SPACE = 10.0;
     }
 
     /**
-     * Enumeration for conversion types with display names and validation.
+     * Enumeration for conversion types.
      */
     public enum ConversionCategory {
         IMAGES("Images", "Images"),
-        MEDIA("Media", "Media"),
-        DOCUMENTS("Docs", "Docs");
-        
+        AUDIO("Audio", "Audio"),
+        VIDEO("Video", "Video");
+
         private final String buttonText;
         private final String conversionType;
-        
+
         ConversionCategory(String buttonText, String conversionType) {
             this.buttonText = buttonText;
             this.conversionType = conversionType;
         }
-        
-        public String getButtonText() { return buttonText; }
-        public String getConversionType() { return conversionType; }
-        
-        public static ConversionCategory fromButtonText(String text) {
-            return Arrays.stream(values())
-                    .filter(category -> category.buttonText.equals(text))
-                    .findFirst()
-                    .orElse(IMAGES); // Default fallback
-        }
-    }
 
-    /**
-     * Utility class for layout calculations.
-     */
-    private static final class LayoutCalculator {
-        
-        static double calculateMinHorizontalWidth() {
-            // Pattern: [spacing][button][spacing][button][spacing][button][spacing]
-            double buttonPaneWidth = (LayoutConstants.BUTTON_SPACING * 4) + 
-                                   (LayoutConstants.MIN_BUTTON_SIZE * LayoutConstants.BUTTON_COUNT);
-            return buttonPaneWidth + LayoutConstants.BORDER_PANE_PADDING;
+        public String getButtonText() {
+            return buttonText;
         }
         
-        static double calculateMinVerticalWidth() {
-            double buttonPaneWidth = LayoutConstants.MIN_BUTTON_SIZE + (LayoutConstants.PANE_PADDING * 2);
-            return buttonPaneWidth + LayoutConstants.BORDER_PANE_PADDING;
+        public String getConversionType() {
+            return conversionType;
         }
-        
-        static double calculateMinHorizontalHeight() {
-            double titleHeight = LayoutConstants.MIN_TITLE_SIZE + LayoutConstants.TITLE_EXTRA_SPACE;
-            double buttonPaneHeight = LayoutConstants.MIN_BUTTON_SIZE + (LayoutConstants.PANE_PADDING * 2);
-            return titleHeight + LayoutConstants.VBOX_SPACING + buttonPaneHeight + 
-                   LayoutConstants.BORDER_PANE_PADDING + LayoutConstants.TOP_SECTION_HEIGHT;
-        }
-        
-        static double calculateMinVerticalHeight() {
-            double titleHeight = LayoutConstants.MIN_TITLE_SIZE + LayoutConstants.TITLE_EXTRA_SPACE;
-            double buttonPaneHeight = (LayoutConstants.BUTTON_SPACING * 4) + 
-                                    (LayoutConstants.MIN_BUTTON_SIZE * LayoutConstants.BUTTON_COUNT);
-            return titleHeight + LayoutConstants.VBOX_SPACING + buttonPaneHeight + 
-                   LayoutConstants.BORDER_PANE_PADDING + LayoutConstants.TOP_SECTION_HEIGHT;
-        }
-        
-        static double calculateRequiredHorizontalWidth() {
-            return (LayoutConstants.BUTTON_SPACING * 4) + 
-                   (LayoutConstants.MIN_BUTTON_SIZE * LayoutConstants.BUTTON_COUNT);
+
+        public static ConversionCategory fromButtonText(String text) {
+            for (ConversionCategory category : values()) {
+                if (category.getButtonText().equalsIgnoreCase(text)) {
+                    return category;
+                }
+            }
+            throw new IllegalArgumentException("Unknown button text: " + text);
         }
     }
 
     @FXML
     private void initialize() {
-        validateFXMLInjection();
-        setupButtonActions();
-        
-        // Initialize asynchronously to avoid blocking the JavaFX Application Thread
-        Platform.runLater(this::initializeAsync);
+        try {
+            validateFXMLInjection();
+            themeManager = ThemeManager.getInstance();
+            Platform.runLater(() -> initializeAsync());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error during controller initialization", e);
+        }
     }
 
     /**
      * Validates that all FXML components have been properly injected.
      */
     private void validateFXMLInjection() {
-        Objects.requireNonNull(title, "Title label was not injected");
-        Objects.requireNonNull(buttonPane, "Button pane was not injected");
-        Objects.requireNonNull(imageButton, "Image button was not injected");
-        Objects.requireNonNull(audioButton, "Audio button was not injected");
-        Objects.requireNonNull(videoButton, "Video button was not injected");
-        Objects.requireNonNull(themeToggleBtn, "Theme toggle button was not injected");
+        Objects.requireNonNull(title, "Title label not injected");
+        Objects.requireNonNull(buttonPane, "Button pane not injected");
+        Objects.requireNonNull(imageButton, "Image button not injected");
+        Objects.requireNonNull(audioButton, "Audio button not injected");
+        Objects.requireNonNull(videoButton, "Video button not injected");
+        Objects.requireNonNull(themeToggleBtn, "Theme toggle button not injected");
     }
 
     /**
@@ -166,23 +128,293 @@ public class StartViewController {
      */
     private void initializeAsync() {
         try {
-            setupEventListeners();
-            setupThemeToggle();
-            updateThemeIcon();
-            updateLayout();
+            setupButtons();
+            setupButtonActions();
+            setupTheme();
+            setupResponsiveLayout();
+            enforceMinimumWindowSize();
+            isInitialized = true;
             
-            // Setup window constraints after initial layout
-            Platform.runLater(this::setupWindowConstraints);
-            
-            // Optional: Setup debugging console listener
             if (isDebugMode()) {
-                setupConsoleListener();
+                LOGGER.info("StartViewController initialized successfully");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error during async initialization", e);
+        }
+    }
+
+    /**
+     * Sets up the buttons with proper CSS classes and no inline styling.
+     */
+    private void setupButtons() {
+        try {
+            // Start with base size class
+            ensureButtonClass(imageButton, "circle-btn");
+            ensureButtonClass(audioButton, "circle-btn");
+            ensureButtonClass(videoButton, "circle-btn");
+
+            // Set button texts
+            imageButton.setText("Images");
+            audioButton.setText("Audio");
+            videoButton.setText("Video");
+
+            // Remove any inline styles that might interfere
+            imageButton.setStyle("");
+            audioButton.setStyle("");
+            videoButton.setStyle("");
+
+            LOGGER.info("Buttons configured with CSS classes");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting up buttons", e);
+        }
+    }
+
+    /**
+     * Ensures a button has the specified CSS classes.
+     */
+    private void ensureButtonClass(Button button, String... classes) {
+        for (String className : classes) {
+            if (!button.getStyleClass().contains(className)) {
+                button.getStyleClass().add(className);
+            }
+        }
+    }
+
+    /**
+     * Sets up responsive layout with proportional scaling.
+     */
+    private void setupResponsiveLayout() {
+        try {
+            // Wait for scene to be available
+            if (buttonPane.getScene() != null) {
+                setupWindowListeners();
+            } else {
+                buttonPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                    if (newScene != null) {
+                        setupWindowListeners();
+                        enforceMinimumWindowSize();
+                    }
+                });
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting up responsive layout", e);
+        }
+    }
+
+    /**
+     * Sets up window size listeners for proportional responsive behavior.
+     */
+    private void setupWindowListeners() {
+        try {
+            Window window = buttonPane.getScene().getWindow();
+            if (window != null) {
+                window.widthProperty().addListener((obs, oldWidth, newWidth) -> updateProportionalSizing());
+                window.heightProperty().addListener((obs, oldHeight, newHeight) -> updateProportionalSizing());
+                
+                // Initial size update
+                Platform.runLater(this::updateProportionalSizing);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error setting up window listeners", e);
+        }
+    }
+
+    /**
+     * Updates all element sizes proportionally based on window size.
+     */
+    private void updateProportionalSizing() {
+        if (!isInitialized) return;
+        
+        try {
+            Platform.runLater(() -> {
+                Window window = buttonPane.getScene().getWindow();
+                if (window == null) return;
+
+                double currentWidth = window.getWidth();
+                double currentHeight = window.getHeight();
+                
+                // Calculate scaling factors
+                double widthScale = currentWidth / LayoutConstants.BASE_WINDOW_WIDTH;
+                double heightScale = currentHeight / LayoutConstants.BASE_WINDOW_HEIGHT;
+                
+                // Use the smaller scale to maintain proportions and fit within window
+                double scale = Math.min(widthScale, heightScale);
+                
+                // Calculate proportional sizes
+                double scaledButtonSize = LayoutConstants.BASE_BUTTON_SIZE * scale;
+                double scaledTitleSize = LayoutConstants.BASE_TITLE_SIZE * scale;
+                double scaledSpacing = LayoutConstants.BASE_SPACING * scale;
+                double scaledThemeIconSize = LayoutConstants.BASE_THEME_ICON_SIZE * scale;
+                double scaledThemeButtonSize = LayoutConstants.BASE_THEME_BUTTON_SIZE * scale;
+                
+                // Apply minimum constraints
+                scaledButtonSize = Math.max(scaledButtonSize, LayoutConstants.MIN_BUTTON_SIZE);
+                scaledTitleSize = Math.max(scaledTitleSize, LayoutConstants.MIN_TITLE_SIZE);
+                scaledSpacing = Math.max(scaledSpacing, LayoutConstants.MIN_SPACING);
+                scaledThemeIconSize = Math.max(scaledThemeIconSize, LayoutConstants.MIN_THEME_ICON_SIZE);
+                scaledThemeButtonSize = Math.max(scaledThemeButtonSize, LayoutConstants.MIN_THEME_BUTTON_SIZE);
+                
+                // Ensure minimum side margins (15px from each side)
+                double requiredWidth = (LayoutConstants.BUTTON_COUNT * scaledButtonSize) + 
+                                     ((LayoutConstants.BUTTON_COUNT - 1) * scaledSpacing) + 
+                                     LayoutConstants.BUTTON_PANE_PADDING + 
+                                     LayoutConstants.BORDER_PANE_PADDING + 
+                                     (2 * LayoutConstants.MIN_SIDE_MARGIN);
+                
+                if (requiredWidth > currentWidth) {
+                    // Recalculate button size to fit with minimum margins
+                    double availableForButtons = currentWidth - LayoutConstants.BUTTON_PANE_PADDING - 
+                                               LayoutConstants.BORDER_PANE_PADDING - 
+                                               (2 * LayoutConstants.MIN_SIDE_MARGIN) - 
+                                               ((LayoutConstants.BUTTON_COUNT - 1) * scaledSpacing);
+                    scaledButtonSize = Math.max(availableForButtons / LayoutConstants.BUTTON_COUNT, 
+                                              LayoutConstants.MIN_BUTTON_SIZE);
+                }
+                
+                // Apply the calculated sizes
+                applyProportionalSizes(scaledButtonSize, scaledTitleSize, scaledSpacing, 
+                                     scaledThemeIconSize, scaledThemeButtonSize);
+            });
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating proportional sizing", e);
+        }
+    }
+
+    /**
+     * Applies calculated proportional sizes to UI elements.
+     */
+    private void applyProportionalSizes(double buttonSize, double titleSize, double spacing, 
+                                      double themeIconSize, double themeButtonSize) {
+        try {
+            // Update button sizes with inline styles for precise control
+            String buttonStyle = String.format(
+                "-fx-min-width: %.1fpx; -fx-min-height: %.1fpx; " +
+                "-fx-max-width: %.1fpx; -fx-max-height: %.1fpx; " +
+                "-fx-pref-width: %.1fpx; -fx-pref-height: %.1fpx; " +
+                "-fx-font-size: %.1fpx;",
+                buttonSize, buttonSize, buttonSize, buttonSize, buttonSize, buttonSize,
+                buttonSize * 0.16 // Font size as 16% of button size
+            );
+            
+            imageButton.setStyle(buttonStyle);
+            audioButton.setStyle(buttonStyle);
+            videoButton.setStyle(buttonStyle);
+            
+            // Update title size
+            title.setStyle(String.format("-fx-font-size: %.1fpx;", titleSize));
+            
+            // Update button pane spacing
+            buttonPane.setSpacing(spacing);
+            
+            // Update theme toggle button and icon sizes
+            updateThemeToggleSize(themeButtonSize, themeIconSize);
+            
+            LOGGER.fine(String.format("Applied proportional sizes - Button: %.1f, Title: %.1f, Spacing: %.1f, ThemeIcon: %.1f", 
+                       buttonSize, titleSize, spacing, themeIconSize));
+            
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error applying proportional sizes", e);
+        }
+    }
+
+    /**
+     * Updates the theme toggle button and icon sizes proportionally.
+     */
+    private void updateThemeToggleSize(double buttonSize, double iconSize) {
+        try {
+            // Update theme toggle button size
+            String themeButtonStyle = String.format(
+                "-fx-min-width: %.1fpx; -fx-min-height: %.1fpx; " +
+                "-fx-max-width: %.1fpx; -fx-max-height: %.1fpx; " +
+                "-fx-pref-width: %.1fpx; -fx-pref-height: %.1fpx;",
+                buttonSize, buttonSize, buttonSize, buttonSize, buttonSize, buttonSize
+            );
+            themeToggleBtn.setStyle(themeButtonStyle);
+            
+            // Update theme icon size
+            if (themeToggleBtn.getGraphic() instanceof FontIcon fontIcon) {
+                fontIcon.setIconSize((int) Math.round(iconSize));
             }
             
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to initialize StartViewController", e);
-            showErrorAlert("Initialization Error", "Failed to initialize the application interface.");
+            LOGGER.log(Level.WARNING, "Error updating theme toggle size", e);
         }
+    }
+
+    /**
+     * Sets up theme management using ThemeManager.
+     */
+    private void setupTheme() {
+        try {
+            themeManager = ThemeManager.getInstance();
+
+            // Apply theme to current scene and setup toggle button
+            Platform.runLater(() -> {
+                if (title.getScene() != null) {
+                    themeManager.initializeTheme(title.getScene(), themeToggleBtn);
+                }
+            });
+            
+            // If scene is not ready yet, wait for it
+            title.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                if (newScene != null) {
+                    themeManager.initializeTheme(newScene, themeToggleBtn);
+                }
+            });
+            
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting up theme management", e);
+        }
+    }
+
+    /**
+     * Enforces minimum window size and sets initial size.
+     */
+    private void enforceMinimumWindowSize() {
+        Platform.runLater(() -> {
+            try {
+                if (buttonPane.getScene() != null && buttonPane.getScene().getWindow() instanceof Stage stage) {
+                    double minWidth = calculateAbsoluteMinWidth();
+                    double minHeight = calculateAbsoluteMinHeight();
+                    
+                    stage.setMinWidth(minWidth);
+                    stage.setMinHeight(minHeight);
+                    
+                    // Set initial size to base dimensions if window is smaller
+                    if (stage.getWidth() < LayoutConstants.BASE_WINDOW_WIDTH) {
+                        stage.setWidth(LayoutConstants.BASE_WINDOW_WIDTH);
+                    }
+                    if (stage.getHeight() < LayoutConstants.BASE_WINDOW_HEIGHT) {
+                        stage.setHeight(LayoutConstants.BASE_WINDOW_HEIGHT);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "Error enforcing minimum window size", e);
+            }
+        });
+    }
+
+    /**
+     * Calculates absolute minimum width needed.
+     */
+    private double calculateAbsoluteMinWidth() {
+        return (LayoutConstants.BUTTON_COUNT * LayoutConstants.MIN_BUTTON_SIZE) +
+               ((LayoutConstants.BUTTON_COUNT - 1) * LayoutConstants.MIN_SPACING) +
+               LayoutConstants.BUTTON_PANE_PADDING +
+               LayoutConstants.BORDER_PANE_PADDING +
+               (2 * LayoutConstants.MIN_SIDE_MARGIN);
+    }
+
+    /**
+     * Calculates absolute minimum height needed.
+     */
+    private double calculateAbsoluteMinHeight() {
+        return LayoutConstants.MIN_BUTTON_SIZE + 
+               LayoutConstants.BUTTON_PANE_PADDING + 
+               LayoutConstants.VBOX_SPACING + 
+               LayoutConstants.MIN_TITLE_SIZE + 
+               LayoutConstants.TOP_SECTION_HEIGHT + 
+               30; // BorderPane padding
     }
 
     /**
@@ -196,487 +428,82 @@ public class StartViewController {
      * Configures button click actions with proper error handling.
      */
     private void setupButtonActions() {
-        imageButton.setOnAction(e -> handleConversionButtonClick(imageButton));
-        audioButton.setOnAction(e -> handleConversionButtonClick(audioButton));
-        videoButton.setOnAction(e -> handleConversionButtonClick(videoButton));
+        try {
+            imageButton.setOnAction(e -> handleConversionButtonClick(imageButton));
+            audioButton.setOnAction(e -> handleConversionButtonClick(audioButton));
+            videoButton.setOnAction(e -> handleConversionButtonClick(videoButton));
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting up button actions", e);
+        }
     }
 
     /**
      * Handles conversion button clicks with comprehensive error handling.
      */
     private void handleConversionButtonClick(Button sourceButton) {
-        if (isLayoutTransitioning) {
-            LOGGER.info("Ignoring button click during layout transition");
-            return;
-        }
-        
         try {
             ConversionCategory category = ConversionCategory.fromButtonText(sourceButton.getText());
             switchToConversionView(category);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to handle button click", e);
-            showErrorAlert("Navigation Error", "Failed to navigate to the conversion screen.");
+            LOGGER.log(Level.SEVERE, "Error handling button click for: " + sourceButton.getText(), e);
+            showErrorDialog("Navigation Error", "Failed to switch to conversion view: " + e.getMessage());
         }
     }
 
     /**
-     * Switches to the conversion view with proper error handling and state management.
+     * Switches to the conversion view with simplified navigation.
      */
     private void switchToConversionView(ConversionCategory category) {
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("conversion-controller.fxml"));
-                return loader;
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to create FXML loader", e);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/test/truinconv/conversion-controller.fxml"));
+            Parent conversionRoot = loader.load();
+            
+            ConversionController controller = loader.getController();
+            configureConversionController(controller, category);
+            
+            Scene currentScene = title.getScene();
+            Scene conversionScene = new Scene(conversionRoot, currentScene.getWidth(), currentScene.getHeight());
+            
+            // Copy stylesheets from current scene
+            conversionScene.getStylesheets().addAll(currentScene.getStylesheets());
+            
+            Stage stage = (Stage) currentScene.getWindow();
+            stage.setScene(conversionScene);
+            
+            // Apply current theme to new scene
+            if (themeManager != null) {
+                themeManager.applyTheme(conversionScene);
             }
-        }).thenCompose(loader -> CompletableFuture.supplyAsync(() -> {
-            try {
-                Parent conversionView = loader.load();
-                return new ViewLoadResult(loader, conversionView);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to load conversion view", e);
-            }
-        })).thenAcceptAsync(result -> {
-            Platform.runLater(() -> {
-                try {
-                    configureConversionController(result.loader, category);
-                    Scene currentScene = title.getScene();
-                    if (currentScene != null) {
-                        currentScene.setRoot(result.view);
-                    }
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Failed to configure conversion view", e);
-                    showErrorAlert("Configuration Error", "Failed to configure the conversion interface.");
-                }
-            });
-        }).exceptionally(throwable -> {
-            Platform.runLater(() -> {
-                LOGGER.log(Level.SEVERE, "Failed to switch to conversion view", throwable);
-                showErrorAlert("Navigation Error", "Failed to load the conversion screen.");
-            });
-            return null;
-        });
+            
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Failed to load conversion view", e);
+            showErrorDialog("Loading Error", "Could not load the conversion interface.");
+        }
     }
-
-    /**
-     * Helper record for view loading results.
-     */
-    private record ViewLoadResult(FXMLLoader loader, Parent view) {}
 
     /**
      * Configures the conversion controller with proper state transfer.
      */
-    private void configureConversionController(FXMLLoader loader, ConversionCategory category) {
-        ConversionController controller = loader.getController();
-        if (controller != null) {
-            controller.setConversionType(category.getConversionType());
-            controller.setButtonTextAsTitle(category.getButtonText());
-            controller.setThemeState(darkMode);
-        } else {
-            LOGGER.warning("Conversion controller was null after loading FXML");
+    private void configureConversionController(ConversionController controller, ConversionCategory category) {
+        try {
+            controller.setConversionCategory(category.getConversionType());
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error configuring conversion controller", e);
         }
     }
 
     /**
-     * Sets up all event listeners for responsive layout.
+     * Shows an error dialog to the user.
      */
-    private void setupEventListeners() {
-        Scene scene = title.getScene();
-        if (scene != null) {
-            // Scene dimension listeners
-            scene.widthProperty().addListener((obs, oldVal, newVal) -> {
-                if (!isLayoutTransitioning) {
-                    updateLayout();
-                }
-            });
-            scene.heightProperty().addListener((obs, oldVal, newVal) -> {
-                if (!isLayoutTransitioning) {
-                    updateLayout();
-                }
-            });
-            
-            // Button pane dimension listeners
-            setupButtonPaneListeners();
+    private void showErrorDialog(String title, String message) {
+        try {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error showing error dialog", e);
         }
-    }
-
-    /**
-     * Sets up button pane-specific listeners for layout changes.
-     */
-    private void setupButtonPaneListeners() {
-        buttonPane.widthProperty().addListener((obs, oldVal, newVal) -> {
-            if (!isLayoutTransitioning) {
-                updateButtonPaneLayout();
-            }
-        });
-        buttonPane.heightProperty().addListener((obs, oldVal, newVal) -> {
-            if (!isLayoutTransitioning) {
-                updateButtonPaneLayout();
-            }
-        });
-    }
-
-    /**
-     * Configures theme toggle functionality.
-     */
-    private void setupThemeToggle() {
-        themeToggleBtn.selectedProperty().addListener((obs, oldVal, selected) -> {
-            toggleTheme(selected);
-        });
-        themeToggleBtn.setOnAction(e -> updateThemeIcon());
-    }
-
-    /**
-     * Determines optimal layout orientation based on available space.
-     */
-    private boolean shouldUseHorizontalLayout() {
-        double availableWidth = buttonPane.getWidth();
-        double minRequiredWidth = LayoutCalculator.calculateRequiredHorizontalWidth();
-        return availableWidth >= minRequiredWidth;
-    }
-
-    /**
-     * Updates button pane layout with smooth transitions.
-     */
-    private void updateButtonPaneLayout() {
-        if (isLayoutTransitioning) return;
-        
-        boolean shouldBeHorizontal = shouldUseHorizontalLayout();
-        
-        if (shouldBeHorizontal != isHorizontalLayout) {
-            isLayoutTransitioning = true;
-            
-            Platform.runLater(() -> {
-                try {
-                    isHorizontalLayout = shouldBeHorizontal;
-                    recreateButtonPane();
-                    
-                    // Update window constraints after layout change
-                    Platform.runLater(this::setupWindowConstraints);
-                } finally {
-                    isLayoutTransitioning = false;
-                }
-            });
-        }
-    }
-
-    /**
-     * Recreates the button pane with the appropriate layout orientation.
-     */
-    private void recreateButtonPane() {
-        Parent parent = buttonPane.getParent();
-        if (!(parent instanceof VBox parentVBox)) {
-            LOGGER.warning("Button pane parent is not a VBox, cannot recreate layout");
-            return;
-        }
-
-        // Store current position and remove from parent
-        int buttonPaneIndex = parentVBox.getChildren().indexOf(buttonPane);
-        parentVBox.getChildren().remove(buttonPane);
-
-        // Create new layout container
-        Pane newButtonPane = createOptimizedButtonPane();
-        
-        // Replace reference and add to parent at correct position
-        buttonPane = newButtonPane;
-        parentVBox.getChildren().add(buttonPaneIndex, buttonPane);
-
-        // Re-setup listeners for the new pane
-        setupButtonPaneListeners();
-        
-        LOGGER.info("Recreated button pane with " + 
-                   (isHorizontalLayout ? "horizontal" : "vertical") + " layout");
-    }
-
-    /**
-     * Creates an optimized button pane with proper configuration.
-     */
-    private Pane createOptimizedButtonPane() {
-        Pane newPane;
-        
-        if (isHorizontalLayout) {
-            newPane = createHorizontalButtonPane();
-        } else {
-            newPane = createVerticalButtonPane();
-        }
-
-        newPane.setId("buttonPane");
-        
-        // Add buttons in consistent order
-        List<Button> buttons = List.of(imageButton, audioButton, videoButton);
-        newPane.getChildren().setAll(buttons);
-        
-        return newPane;
-    }
-
-    /**
-     * Creates a horizontal button pane with proper spacing.
-     */
-    private HBox createHorizontalButtonPane() {
-        HBox hbox = new HBox(LayoutConstants.BUTTON_SPACING);
-        hbox.setAlignment(Pos.CENTER);
-        hbox.setPadding(new Insets(
-            LayoutConstants.PANE_PADDING, 
-            LayoutConstants.BUTTON_SPACING, 
-            LayoutConstants.PANE_PADDING, 
-            LayoutConstants.BUTTON_SPACING
-        ));
-        return hbox;
-    }
-
-    /**
-     * Creates a vertical button pane with proper spacing.
-     */
-    private VBox createVerticalButtonPane() {
-        VBox vbox = new VBox(LayoutConstants.BUTTON_SPACING);
-        vbox.setAlignment(Pos.CENTER);
-        vbox.setPadding(new Insets(
-            LayoutConstants.BUTTON_SPACING, 
-            LayoutConstants.PANE_PADDING, 
-            LayoutConstants.BUTTON_SPACING, 
-            LayoutConstants.PANE_PADDING
-        ));
-        return vbox;
-    }
-
-    /**
-     * Calculates optimal button size based on current layout and available space.
-     */
-    private double calculateOptimalButtonSize() {
-        Scene scene = title.getScene();
-        if (scene == null) return LayoutConstants.MIN_BUTTON_SIZE;
-        
-        double paneWidth = Math.max(buttonPane.getWidth(), scene.getWidth() - LayoutConstants.BORDER_PANE_PADDING);
-        double paneHeight = Math.max(buttonPane.getHeight(), scene.getHeight() * 0.6);
-
-        double calculatedSize;
-        
-        if (isHorizontalLayout) {
-            // Account for spacing on sides and between buttons
-            double availableWidth = paneWidth - (LayoutConstants.BUTTON_SPACING * 4);
-            calculatedSize = availableWidth / LayoutConstants.BUTTON_COUNT;
-        } else {
-            // Account for spacing on top/bottom and between buttons
-            double availableHeight = paneHeight - (LayoutConstants.BUTTON_SPACING * 4);
-            double heightBasedSize = availableHeight / LayoutConstants.BUTTON_COUNT;
-            double widthBasedSize = paneWidth - (LayoutConstants.PANE_PADDING * 2);
-            calculatedSize = Math.min(heightBasedSize, widthBasedSize);
-        }
-
-        return Math.min(LayoutConstants.MAX_BUTTON_SIZE, 
-                       Math.max(LayoutConstants.MIN_BUTTON_SIZE, calculatedSize));
-    }
-
-    /**
-     * Updates button styles with optimal sizing and font scaling.
-     */
-    private void updateButtonStyles(double buttonSize) {
-        double buttonFont = Math.round(Math.max(
-            LayoutConstants.MIN_BUTTON_FONT, 
-            buttonSize * LayoutConstants.BUTTON_FONT_SCALE
-        ));
-        
-        String buttonStyle = String.format("-fx-font-size: %.0fpx;", buttonFont);
-        
-        List<Button> buttons = List.of(imageButton, audioButton, videoButton);
-        buttons.forEach(button -> {
-            button.setStyle(buttonStyle);
-            button.setMinSize(buttonSize, buttonSize);
-            button.setPrefSize(buttonSize, buttonSize);
-            button.setMaxSize(buttonSize, buttonSize);
-        });
-    }
-
-    /**
-     * Updates title styling with responsive font sizing.
-     */
-    private void updateTitleStyle() {
-        Scene scene = title.getScene();
-        if (scene == null) return;
-
-        double windowWidth = Math.max(350, scene.getWidth());
-        double titleSize = Math.min(LayoutConstants.MAX_TITLE_SIZE, 
-                                  Math.max(LayoutConstants.MIN_TITLE_SIZE, 
-                                          windowWidth * LayoutConstants.TITLE_SCALE_FACTOR));
-        
-        String titleStyle = String.format("-fx-font-size: %.0fpx; -fx-font-weight: bold;", titleSize);
-        title.setStyle(titleStyle);
-    }
-
-    /**
-     * Updates the complete layout with optimized calculations.
-     */
-    private void updateLayout() {
-        if (isLayoutTransitioning) return;
-        
-        updateTitleStyle();
-        
-        double buttonSize = calculateOptimalButtonSize();
-        updateButtonStyles(buttonSize);
-    }
-
-    /**
-     * Sets up window size constraints based on current layout configuration.
-     */
-    private void setupWindowConstraints() {
-        Window window = title.getScene().getWindow();
-        if (!(window instanceof Stage stage)) return;
-
-        double minWidth, minHeight;
-
-        if (isHorizontalLayout) {
-            minWidth = LayoutCalculator.calculateMinHorizontalWidth();
-            minHeight = LayoutCalculator.calculateMinHorizontalHeight();
-        } else {
-            minWidth = LayoutCalculator.calculateMinVerticalWidth();
-            minHeight = LayoutCalculator.calculateMinVerticalHeight();
-        }
-
-        // Add buffer to prevent UI cutoff
-        minWidth += LayoutConstants.LAYOUT_BUFFER;
-        minHeight += LayoutConstants.LAYOUT_BUFFER;
-
-        stage.setMinWidth(minWidth);
-        stage.setMinHeight(minHeight);
-
-        LOGGER.info(String.format("Window constraints updated: minWidth=%.1f, minHeight=%.1f (layout: %s)", 
-                                 minWidth, minHeight, isHorizontalLayout ? "horizontal" : "vertical"));
-    }
-
-    // Theme Management
-
-    /**
-     * Sets the theme state for this controller with proper state synchronization.
-     */
-    public void setThemeState(boolean isDarkMode) {
-        this.darkMode = isDarkMode;
-        
-        Platform.runLater(() -> {
-            updateRootStyleClass();
-            themeToggleBtn.setSelected(isDarkMode);
-            updateThemeIcon();
-        });
-    }
-
-    /**
-     * Toggles between dark and light themes with proper state management.
-     */
-    public void toggleTheme(boolean dark) {
-        this.darkMode = dark;
-        updateRootStyleClass();
-        updateThemeIcon();
-    }
-
-    /**
-     * Updates the root style class for theme changes.
-     */
-    private void updateRootStyleClass() {
-        Scene scene = themeToggleBtn.getScene();
-        if (scene == null) return;
-        
-        Parent root = scene.getRoot();
-        if (darkMode) {
-            if (!root.getStyleClass().contains("dark-mode")) {
-                root.getStyleClass().add("dark-mode");
-            }
-        } else {
-            root.getStyleClass().removeAll("dark-mode");
-        }
-    }
-
-    /**
-     * Updates the theme toggle button icon with proper styling.
-     */
-    public void updateThemeIcon() {
-        if (themeToggleBtn == null) return;
-        
-        FontIcon icon = createOptimizedThemeIcon();
-        themeToggleBtn.setGraphic(icon);
-    }
-
-    /**
-     * Creates an optimized theme icon based on current mode.
-     */
-    private FontIcon createOptimizedThemeIcon() {
-        FontIcon icon;
-        if (darkMode) {
-            icon = new FontIcon("mdi2w-white-balance-sunny");
-            icon.setIconColor(Paint.valueOf("#ffd740"));
-        } else {
-            icon = new FontIcon("mdi2m-moon-waning-crescent");
-            icon.setIconColor(Paint.valueOf("#888"));
-        }
-        icon.setIconSize(26);
-        return icon;
-    }
-
-    // Utility Methods
-
-    /**
-     * Shows an error alert with consistent styling.
-     */
-    private void showErrorAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
-    /**
-     * Sets up console listener for debugging purposes (development only).
-     */
-    private void setupConsoleListener() {
-        Thread consoleThread = new Thread(() -> {
-            try (Scanner scanner = new Scanner(System.in)) {
-                while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine().trim();
-                    handleConsoleCommand(line);
-                }
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "Console listener error", e);
-            }
-        }, "Console-Listener");
-        
-        consoleThread.setDaemon(true);
-        consoleThread.start();
-        
-        LOGGER.info("Debug console listener started");
-    }
-
-    /**
-     * Handles console commands for debugging.
-     */
-    private void handleConsoleCommand(String command) {
-        switch (command.toLowerCase()) {
-            case "get size", "size" -> Platform.runLater(this::printDebugInfo);
-            case "layout" -> Platform.runLater(() -> {
-                System.out.printf("Current layout: %s%n", 
-                                isHorizontalLayout ? "horizontal" : "vertical");
-            });
-            case "theme" -> Platform.runLater(() -> {
-                System.out.printf("Current theme: %s%n", darkMode ? "dark" : "light");
-            });
-            default -> System.out.println("Unknown command: " + command);
-        }
-    }
-
-    /**
-     * Prints debug information about current layout state.
-     */
-    private void printDebugInfo() {
-        System.out.printf(
-            "=== Debug Info ===%n" +
-            "ButtonPane dimensions: width=%.2f, height=%.2f%n" +
-            "Layout: %s%n" +
-            "Theme: %s%n" +
-            "Transitioning: %s%n",
-            buttonPane.getWidth(),
-            buttonPane.getHeight(),
-            isHorizontalLayout ? "horizontal" : "vertical",
-            darkMode ? "dark" : "light",
-            isLayoutTransitioning
-        );
     }
 }

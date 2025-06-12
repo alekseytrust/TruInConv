@@ -1,14 +1,11 @@
+/* Base styles and variables */
 .root,
 .stack-pane {
     -fx-background-color: -app-background;
     -fx-font-family: 'Segoe UI', 'Arial', sans-serif;
 }
 
-/*
--- LIGHT THEME (Default) --
-Sets color variables for backgrounds, text, and button styles.
-Applies a soft gradient background and configures accent colors suitable for light UI.
-*/
+/* LIGHT THEME (Default) */
 .root {
     /* Core colors */
     -app-background: linear-gradient(
@@ -63,11 +60,7 @@ Applies a soft gradient background and configures accent colors suitable for lig
     -back-icon-color: #888;
 }
 
-/*
--- DARK THEME --
-Overrides core color variables for backgrounds, text, and button styles.
-Applies a darker gradient background and matching accent colors for a dark mode interface.
-*/
+/* DARK THEME */
 .root.dark-mode {
     /* Core colors */
     -app-background: linear-gradient(
@@ -128,12 +121,12 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-effect: dropshadow(gaussian, #ffd74077, 1.2, 0.09, 0, 2);
 }
 
-/* Regular label styling */
+/* Basic label styling */
 .label {
     -fx-text-fill: -app-foreground;
 }
 
-/* Format selection section styling */
+/* Format selection layout */
 .format-selection-container {
     -fx-padding: 10 0;
 }
@@ -179,12 +172,12 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-background-color: -combo-box-hover;
 }
 
-/* Arrow icon between combo boxes */
+/* Arrow icon between ComboBoxes */
 .arrow-icon {
     -fx-icon-color: -arrow-icon-color;
 }
 
-/* Drag and drop zone styling */
+/* Drag and drop zone */
 #dropZone {
     -fx-background-color: -drop-zone-bg;
     -fx-border-color: -drop-zone-border;
@@ -194,16 +187,7 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-cursor: hand;
 }
 
-#dropZone:hover {
-    -fx-background-color: -drop-zone-active-bg;
-    -fx-border-color: -drop-zone-active-border;
-    -fx-border-style: solid;
-}
-
-/* Remove the invalid :active pseudo-class */
-/* JavaFX doesn't support standard CSS :active pseudo-class */
-/* Instead, we'll handle the active state in the controller */
-
+#dropZone:hover,
 #dropZone.drag-over {
     -fx-background-color: -drop-zone-active-bg;
     -fx-border-color: -drop-zone-active-border;
@@ -225,14 +209,14 @@ Applies a darker gradient background and matching accent colors for a dark mode 
 
 .table-view .column-header {
     -fx-background-color: -table-header-bg;
-    -fx-alignment: CENTER;  /* Centers the header container */
+    -fx-alignment: CENTER;
 }
 
 .table-view .column-header .label {
     -fx-text-fill: -app-foreground;
     -fx-font-weight: bold;
-    -fx-alignment: CENTER;      /* Centers the label within the container */
-    -fx-text-alignment: CENTER; /* Centers the text within the label */
+    -fx-alignment: CENTER;
+    -fx-text-alignment: CENTER;
 }
 
 .table-view .table-row-cell {
@@ -253,7 +237,6 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-border-color: transparent;
 }
 
-/* Fixed placeholder alignment - properly centers the text */
 .table-view .placeholder {
     -fx-alignment: CENTER;
 }
@@ -267,6 +250,7 @@ Applies a darker gradient background and matching accent colors for a dark mode 
 /* Remove button styling */
 .remove-btn {
     -fx-background-color: transparent;
+    -fx-cursor: hand;
 }
 
 .remove-btn .ikonli-font-icon {
@@ -277,7 +261,7 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-icon-color: derive(-remove-btn-color, 20%);
 }
 
-/* Text Field styling */
+/* TextField styling */
 .text-field, .directory-field {
     -fx-background-color: -text-field-bg;
     -fx-text-fill: -text-field-text;
@@ -288,37 +272,49 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-font-size: 1.06em;
 }
 
-/* Directory picker container */
+/* Directory picker */
 .directory-picker-container {
     -fx-padding: 5 0;
 }
 
-/* Circle buttons */
+/* Circle button base style */
 .circle-btn {
     -fx-background-color: -circle-btn-bg;
     -fx-text-fill: -circle-btn-fg;
-    -fx-background-radius: 50%;
-    -fx-border-radius: 50%;
     -fx-border-color: -circle-btn-border;
     -fx-border-width: 2;
-    -fx-font-size: 1.2em;
+    -fx-font-weight: 600;
     -fx-effect: dropshadow(gaussian, #50e3c299, .3, .05, 0, 1);
     -fx-border-style: solid;
-    -fx-font-weight: 600;
-    -fx-transition: all 0.26s cubic-bezier(.68,-0.55,.27,1.55);
-    /* kill the default JavaFX focus ring and shadow */
+    -fx-background-radius: 50%;
+    -fx-border-radius: 50%;
+    -fx-content-display: CENTER;
+    -fx-text-alignment: CENTER;
+    -fx-alignment: CENTER;
+    -fx-wrap-text: false;
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
+    -fx-transition: all 0.3s ease;
 }
 
+/* Circle button hover and focus */
 .circle-btn:hover {
     -fx-background-color: -circle-btn-hover;
     -fx-effect: dropshadow(gaussian, #ffd74055, .8, .13, 0, 2);
 }
 
 .circle-btn:focused {
-    /* no extra glow on focus */
     -fx-effect: none;
+}
+
+.circle-btn .text {
+    -fx-text-alignment: CENTER;
+    -fx-fill: -circle-btn-fg;
+}
+
+/* Circle button size variants */
+.circle-btn-small, .circle-btn-medium, .circle-btn-large, .circle-btn-xlarge {
+    /* Sizes maintained for perfect circle */
 }
 
 /* Theme toggle button */
@@ -328,20 +324,8 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-cursor: hand;
 }
 
-/* Theme toggle button icon styling - more specific selectors */
 .theme-toggle-btn .ikonli-font-icon {
     -fx-icon-color: -theme-icon-color;
-}
-
-/* Back button icon styling */
-.theme-toggle-btn .ikonli-font-icon {
-    -fx-icon-color: -back-icon-color;
-}
-
-/* Apply transitions to all elements for smooth theme changes */
-.root, .circle-btn, .title-label, .theme-toggle-btn,
-.combo-box, .table-view, .table-cell, .text-field, #dropZone, .arrow-icon, .remove-btn {
-    -fx-transition: all 0.26s cubic-bezier(.68,-0.55,.27,1.55);
 }
 
 /* Back button styling */
@@ -362,7 +346,6 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-background-color: rgba(0, 0, 0, 0.1);
 }
 
-/* Dark mode styling for back button */
 .dark-mode .back-btn:hover {
     -fx-background-color: rgba(255, 255, 255, 0.1);
 }
@@ -371,42 +354,12 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-background-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Add this new CSS class for centered column headers */
-.table-view .column-header.centered-column-header {
-    -fx-alignment: CENTER;
-}
-
-.table-view .column-header.centered-column-header .label {
-    -fx-alignment: CENTER;
-    -fx-text-alignment: CENTER;
-}
-.centered-column-header .label {
-    -fx-alignment: center;
-}
-
-.table-column .centered-column-header {
-    -fx-alignment: center;
-}
-/* More specific selectors */
-.table-view .column-header .centered-column-header .label {
-    -fx-alignment: center;
-}
-
-.table-view .column-header-background .centered-column-header {
-    -fx-alignment: center;
-}
-/* Multiple selector approaches for better compatibility */
-.table-view .column-header .centered-column-header,
-.table-view .column-header .centered-column-header .label,
+/* Centered column header styles */
 .centered-column-header {
     -fx-alignment: center !important;
     -fx-text-alignment: center !important;
 }
 
-/* Theme-specific overrides if needed */
-.dark-mode .table-view .column-header .centered-column-header {
-    -fx-alignment: center !important;
-}
 /* Swap button styling */
 .swap-button {
     -fx-background-color: transparent;
@@ -429,7 +382,6 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-background-color: rgba(0, 0, 0, 0.1);
 }
 
-/* Dark mode styling for swap button */
 .dark-mode .swap-button:hover {
     -fx-background-color: rgba(255, 255, 255, 0.1);
 }
@@ -438,28 +390,23 @@ Applies a darker gradient background and matching accent colors for a dark mode 
     -fx-background-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Add transition for smooth interactions */
-.swap-button {
-    -fx-transition: all 0.2s ease;
-}
-/* Add this to the existing CSS file, after the circle-btn styles */
-
-/* Completion success animation styling */
+/* Completion success animation */
 .circle-btn.completion-success {
     -fx-background-color: #e8f5e8;
     -fx-border-color: #4caf50;
     -fx-text-fill: #2e7d32;
-    -fx-transition: all 0.3s ease;
+    -fx-effect: dropshadow(gaussian, #4caf5088, .6, .15, 0, 2);
 }
 
-/* Dark mode completion success styling */
-.root.dark-mode .circle-btn.completion-success {
+.dark-mode .circle-btn.completion-success {
     -fx-background-color: #1b3b1b;
     -fx-border-color: #66bb6a;
     -fx-text-fill: #81c784;
 }
 
-/* Smooth transitions for completion animation */
-.circle-btn.completion-success {
-    -fx-effect: dropshadow(gaussian, #4caf5088, .6, .15, 0, 2);
+/* Transition animations */
+.root, .circle-btn, .title-label, .theme-toggle-btn,
+.combo-box, .table-view, .table-cell, .text-field, #dropZone, .arrow-icon, .remove-btn,
+.swap-button {
+    -fx-transition: all 0.26s cubic-bezier(.68,-0.55,.27,1.55);
 }

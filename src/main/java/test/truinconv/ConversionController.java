@@ -1,999 +1,1309 @@
-
 package test.truinconv;
 
-import javafx.animation.Interpolator;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Paint;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import javafx.util.Duration;
+import javafx.geometry.Pos;
 import org.kordamp.ikonli.javafx.FontIcon;
+import test.truinconv.converters.ConverterRouter;
+import test.truinconv.constants.LayoutConstants;
+import test.truinconv.constants.ConversionMappings;
+import test.truinconv.model.ConversionCategory;
+import test.truinconv.model.FileItem;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
- * Controller for the file conversion interface.
- * Handles file selection, format conversion options, and UI responsiveness.
+ * Controller for the file conversion interface with proportional responsive sizing.
+ * Handles file selection, format conversion options, and dynamic UI scaling.
  */
 public class ConversionController {
 
     private static final Logger LOGGER = Logger.getLogger(ConversionController.class.getName());
 
     // FXML-injected UI components
+    @FXML private VBox mainVBox;
     @FXML private Label titleLabel;
+    @FXML private HBox formatSelectionContainer;
+    @FXML private ComboBox<String> sourceFormatComboBox;
+    @FXML private ComboBox<String> targetFormatComboBox;
+    @FXML private Button swapButton;
+    @FXML private FontIcon arrowIcon;
     @FXML private StackPane dropZone;
     @FXML private Label dropZoneLabel;
+    @FXML private TableView<FileItem> fileTableView;
+    @FXML private TableColumn<FileItem, String> fileNameColumn;
+    @FXML private TableColumn<FileItem, Button> removeButtonColumn;
+    @FXML private HBox directoryPickerContainer;
     @FXML private TextField directoryField;
     @FXML private Button browseDirBtn;
     @FXML private Button saveBtn;
     @FXML private ToggleButton themeToggleBtn;
-    @FXML private VBox mainVBox;
-    @FXML private ComboBox<String> sourceFormatComboBox;
-    @FXML private ComboBox<String> targetFormatComboBox;
-    @FXML private FontIcon arrowIcon;
-    @FXML private Button swapButton;
-    @FXML private TableView<FileItem> fileTableView;
-    @FXML private TableColumn<FileItem, String> fileNameColumn;
-    @FXML private TableColumn<FileItem, Button> removeButtonColumn;
     @FXML private Button backButton;
 
     // State management
     private final Set<File> selectedFiles = new LinkedHashSet<>();
-    private boolean darkMode = false;
     private ConversionCategory conversionCategory = ConversionCategory.IMAGE;
-
-    // Layout constants organized in a nested class for better maintainability
-    private static final class LayoutConstants {
-        static final double MIN_TITLE_SIZE = 22.0;
-        static final double MAX_TITLE_SIZE = 44.0;
-        static final double MIN_BUTTON_SIZE = 60.0;
-        static final double MAX_BUTTON_SIZE = 100.0;
-        static final double MIN_COMBO_WIDTH = 120.0;
-        static final double MAX_COMBO_WIDTH = 200.0;
-        static final double MIN_DROPZONE_WIDTH = 300.0;
-        static final double MAX_DROPZONE_WIDTH = 500.0;
-        static final double MIN_DROPZONE_HEIGHT = 80.0;
-        static final double MAX_DROPZONE_HEIGHT = 120.0;
-        static final double MIN_TABLE_HEIGHT = 100.0;
-        static final double MAX_TABLE_HEIGHT = 200.0;
-        static final double MIN_TEXTFIELD_WIDTH = 180.0;
-        static final double MAX_TEXTFIELD_WIDTH = 300.0;
-        static final double MIN_WINDOW_WIDTH = 400.0;
-        static final double MIN_WINDOW_HEIGHT = 500.0;
-        static final double RESPONSIVE_SCALE_WIDTH = 400.0;
-        static final double RESPONSIVE_SCALE_HEIGHT = 300.0;
-    }
-
-    // Conversion category enumeration for type safety
-    public enum ConversionCategory {
-        IMAGE("Images"),
-        MEDIA("Media"),  // Combined audio and video
-        DOCUMENT("Documents");
-
-        private final String displayName;
-
-        ConversionCategory(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public static ConversionCategory fromString(String str) {
-            return switch (str.toLowerCase()) {
-                case "images" -> IMAGE;
-                case "media" -> MEDIA;
-                case "docs", "documents" -> DOCUMENT;
-                default -> throw new IllegalArgumentException("Unknown conversion category: " + str);
-            };
-        }
-    }
-
-    // Comprehensive conversion mappings including both audio and video formats under MEDIA
-    private static final Map<ConversionCategory, Map<String, Set<String>>> CONVERSION_MAPPINGS =
-            Map.of(
-                    ConversionCategory.IMAGE, Map.of(
-                            "JPG", Set.of("PNG", "BMP", "GIF", "TIFF"),
-                            "JPEG", Set.of("PNG", "BMP", "GIF", "TIFF"),
-                            "PNG", Set.of("JPG", "JPEG", "BMP", "GIF", "TIFF"),
-                            "BMP", Set.of("JPG", "JPEG", "PNG", "GIF", "TIFF"),
-                            "GIF", Set.of("JPG", "JPEG", "PNG", "BMP", "TIFF"),
-                            "TIFF", Set.of("JPG", "JPEG", "PNG", "BMP", "GIF")
-                    ),
-                    ConversionCategory.MEDIA, Map.of(
-                            // Audio formats
-                            "MP3", Set.of("WAV", "AAC", "FLAC", "OGG"),
-                            "WAV", Set.of("MP3", "AAC", "FLAC", "OGG"),
-                            "AAC", Set.of("MP3", "WAV", "FLAC", "OGG"),
-                            "FLAC", Set.of("MP3", "WAV", "AAC", "OGG"),
-                            "OGG", Set.of("MP3", "WAV", "AAC", "FLAC"),
-                            // Video formats
-                            "MP4", Set.of("AVI", "MKV", "MOV", "WEBM"),
-                            "AVI", Set.of("MP4", "MKV", "MOV", "WEBM"),
-                            "MKV", Set.of("MP4", "AVI", "MOV", "WEBM"),
-                            "MOV", Set.of("MP4", "AVI", "MKV", "WEBM"),
-                            "WEBM", Set.of("MP4", "AVI", "MKV", "MOV")
-                    ),
-                    ConversionCategory.DOCUMENT, Map.of(
-                            "DOCX", Set.of("PDF"),
-                            "PDF", Set.of("DOCX")
-                    )
-            );
-
-    // Define audio and video format sets for validation and UI purposes
-    private static final Set<String> AUDIO_FORMATS = Set.of("MP3", "WAV", "AAC", "FLAC", "OGG");
-    private static final Set<String> VIDEO_FORMATS = Set.of("MP4", "AVI", "MKV", "MOV", "WEBM");
+    private ThemeManager themeManager;
+    private boolean isInitialized = false;
 
     /**
-     * Represents a file item in the TableView with proper equals/hashCode implementation.
+     * Called by the FXML loader to initialize this controller.
      */
-    public static class FileItem {
-        private final File file;
-        private final SimpleStringProperty fileName;
-
-        public FileItem(File file) {
-            this.file = Objects.requireNonNull(file, "File cannot be null");
-            this.fileName = new SimpleStringProperty(file.getName());
-        }
-
-        public File getFile() {
-            return file;
-        }
-
-        public String getFileName() {
-            return fileName.get();
-        }
-
-        public SimpleStringProperty fileNameProperty() {
-            return fileName;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (!(obj instanceof FileItem other)) return false;
-            return Objects.equals(file, other.file);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(file);
-        }
-
-        @Override
-        public String toString() {
-            return "FileItem{file=" + file.getName() + "}";
-        }
-    }
-
-    /**
-     * Custom TableCell implementation for remove buttons.
-     */
-    private class RemoveButtonTableCell extends TableCell<FileItem, Button> {
-        private final Button removeButton;
-
-        public RemoveButtonTableCell() {
-            removeButton = createRemoveButton();
-        }
-
-        private Button createRemoveButton() {
-            Button btn = new Button("×");
-            btn.getStyleClass().add("remove-btn");
-            btn.setStyle(
-                    "-fx-background-color: transparent; " +
-                            "-fx-text-fill: #d32f2f; " +
-                            "-fx-font-size: 16px; " +
-                            "-fx-font-weight: bold; " +
-                            "-fx-cursor: hand;"
-            );
-            btn.setOnAction(event -> {
-                if (getIndex() < getTableView().getItems().size()) {
-                    FileItem fileItem = getTableView().getItems().get(getIndex());
-                    removeFile(fileItem);
-                }
-            });
-            return btn;
-        }
-
-        @Override
-        protected void updateItem(Button item, boolean empty) {
-            super.updateItem(item, empty);
-            setGraphic(empty || getIndex() >= getTableView().getItems().size() ? null : removeButton);
-        }
-    }
-
     @FXML
     private void initialize() {
-        setupTableView();
-        setupEventHandlers();
-        setupFormatComboBoxes();
-        setupThemeToggle();
-
-        // Initialize scene-dependent setup asynchronously
-        Platform.runLater(this::setup);
+        try {
+            validateFXMLInjection();
+            themeManager = ThemeManager.getInstance();
+            Platform.runLater(this::initializeAsync);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error during initialization", e);
+        }
     }
 
     /**
-     * Configures the TableView with proper cell factories and value factories.
+     * Ensures all @FXML fields were injected correctly.
+     */
+    private void validateFXMLInjection() {
+        Objects.requireNonNull(titleLabel, "Title label not injected");
+        Objects.requireNonNull(mainVBox, "Main VBox not injected");
+        Objects.requireNonNull(sourceFormatComboBox, "Source format combo box not injected");
+        Objects.requireNonNull(targetFormatComboBox, "Target format combo box not injected");
+        Objects.requireNonNull(swapButton, "Swap button not injected");
+        Objects.requireNonNull(dropZone, "Drop zone not injected");
+        Objects.requireNonNull(fileTableView, "File table view not injected");
+        Objects.requireNonNull(directoryField, "Directory field not injected");
+        Objects.requireNonNull(browseDirBtn, "Browse button not injected");
+        Objects.requireNonNull(saveBtn, "Save button not injected");
+        Objects.requireNonNull(themeToggleBtn, "Theme toggle button not injected");
+        Objects.requireNonNull(backButton, "Back button not injected");
+    }
+    /**
+     * Runs all setup steps off the JavaFX application thread.
+     */
+    private void initializeAsync() {
+        try {
+            setupTheme();
+            setupTableView();
+            setupDropZone();
+            setupDirectoryBrowser();
+            setupFormatComboBoxes();
+            setupButtonActions();
+            setupResponsiveLayout();
+            enforceMinimumWindowSize();
+            isInitialized = true;
+            // Center all children of mainVBox horizontally
+            mainVBox.setAlignment(Pos.TOP_CENTER);
+
+            if (isDebugMode()) {
+                LOGGER.info("ConversionController initialized successfully");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error during async initialization", e);
+        }
+    }
+
+    /**
+     * Attaches listeners to resize and restyle the UI when the window changes.
+     */
+    private void setupResponsiveLayout() {
+        try {
+            // Wait for scene to be available
+            if (titleLabel.getScene() != null) {
+                setupWindowListeners();
+            } else {
+                titleLabel.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                    if (newScene != null) {
+                        setupWindowListeners();
+                        enforceMinimumWindowSize();
+                    }
+                });
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting up responsive layout", e);
+        }
+    }
+
+    /**
+     * Adds width/height listeners on the primary window to update element sizes.
+     */
+    private void setupWindowListeners() {
+        try {
+            Window window = titleLabel.getScene().getWindow();
+            if (window != null) {
+                window.widthProperty().addListener((obs, oldWidth, newWidth) -> updateProportionalSizing());
+                window.heightProperty().addListener((obs, oldHeight, newHeight) -> updateProportionalSizing());
+
+                // Initial size update
+                Platform.runLater(this::updateProportionalSizing);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error setting up window listeners", e);
+        }
+    }
+
+    /**
+     * Recalculates and reapplies proportional sizes for every UI element.
+     */
+    private void updateProportionalSizing() {
+        if (!isInitialized) return;
+
+        try {
+            Platform.runLater(() -> {
+                Window window = titleLabel.getScene().getWindow();
+                if (window == null) return;
+
+                double currentWidth = window.getWidth();
+                double currentHeight = window.getHeight();
+
+                // Calculate scaling factors
+                double widthScale = currentWidth / LayoutConstants.BASE_WINDOW_WIDTH;
+                double heightScale = currentHeight / LayoutConstants.BASE_WINDOW_HEIGHT;
+
+                // Use the smaller scale to maintain proportions and fit within window
+                double scale = Math.min(widthScale, heightScale);
+
+                // Calculate proportional sizes for all elements
+                ScaledSizes sizes = calculateScaledSizes(scale);
+
+                // Apply the calculated sizes
+                applyProportionalSizes(sizes);
+            });
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating proportional sizing", e);
+        }
+    }
+
+
+    /**
+     * Container class for all scaled element sizes.
+     */
+    private static class ScaledSizes {
+        final double titleSize;
+        final double labelSize;
+        final double comboWidth;
+        final double comboHeight;
+        final double swapButtonSize;
+        final double arrowIconSize;
+        final double dropZoneWidth;
+        final double dropZoneHeight;
+        final double dropZoneFont;
+        final double tableHeight;
+        final double tableFont;
+        final double directoryFieldWidth;
+        final double directoryFieldHeight;
+        final double browseButtonWidth;
+        final double browseButtonHeight;
+        final double saveButtonWidth;
+        final double saveButtonHeight;
+        final double saveButtonFont;
+        final double themeIconSize;
+        final double themeButtonSize;
+        final double backIconSize;
+        final double backButtonSize;
+        final double mainSpacing;
+        final double formatSpacing;
+        final double directorySpacing;
+        // New fields for remove button/icon sizes
+        final double removeButtonSize;
+        final double removeIconSize;
+
+        ScaledSizes(double scale) {
+            this.titleSize = Math.max(LayoutConstants.BASE_TITLE_SIZE * scale, LayoutConstants.MIN_TITLE_SIZE);
+            this.labelSize = Math.max(LayoutConstants.BASE_LABEL_SIZE * scale, LayoutConstants.MIN_LABEL_SIZE);
+            this.comboWidth = Math.max(LayoutConstants.BASE_COMBO_WIDTH * scale, LayoutConstants.MIN_COMBO_WIDTH);
+            this.comboHeight = Math.max(LayoutConstants.BASE_COMBO_HEIGHT * scale, LayoutConstants.MIN_COMBO_HEIGHT);
+            this.swapButtonSize = Math.max(LayoutConstants.BASE_SWAP_BUTTON_SIZE * scale, LayoutConstants.MIN_SWAP_BUTTON_SIZE);
+            this.arrowIconSize = Math.max(LayoutConstants.BASE_ARROW_ICON_SIZE * scale, LayoutConstants.MIN_ARROW_ICON_SIZE);
+            this.dropZoneWidth = Math.max(LayoutConstants.BASE_DROP_ZONE_WIDTH * scale, LayoutConstants.MIN_DROP_ZONE_WIDTH);
+            this.dropZoneHeight = Math.max(LayoutConstants.BASE_DROP_ZONE_HEIGHT * scale, LayoutConstants.MIN_DROP_ZONE_HEIGHT);
+            this.dropZoneFont = Math.max(LayoutConstants.BASE_DROP_ZONE_FONT * scale, LayoutConstants.MIN_DROP_ZONE_FONT);
+            this.tableHeight = Math.max(LayoutConstants.BASE_TABLE_HEIGHT * scale, LayoutConstants.MIN_TABLE_HEIGHT);
+            this.tableFont = Math.max(LayoutConstants.BASE_TABLE_FONT * scale, LayoutConstants.MIN_TABLE_FONT);
+            this.directoryFieldWidth = Math.max(LayoutConstants.BASE_DIRECTORY_FIELD_WIDTH * scale, LayoutConstants.MIN_DIRECTORY_FIELD_WIDTH);
+            this.directoryFieldHeight = Math.max(LayoutConstants.BASE_DIRECTORY_FIELD_HEIGHT * scale, LayoutConstants.MIN_DIRECTORY_FIELD_HEIGHT);
+            this.browseButtonWidth = Math.max(LayoutConstants.BASE_BROWSE_BUTTON_WIDTH * scale, LayoutConstants.MIN_BROWSE_BUTTON_WIDTH);
+            this.browseButtonHeight = Math.max(LayoutConstants.BASE_BROWSE_BUTTON_HEIGHT * scale, LayoutConstants.MIN_BROWSE_BUTTON_HEIGHT);
+            this.saveButtonWidth = Math.max(LayoutConstants.BASE_SAVE_BUTTON_WIDTH * scale, LayoutConstants.MIN_SAVE_BUTTON_WIDTH);
+            this.saveButtonHeight = Math.max(LayoutConstants.BASE_SAVE_BUTTON_HEIGHT * scale, LayoutConstants.MIN_SAVE_BUTTON_HEIGHT);
+            this.saveButtonFont = Math.max(LayoutConstants.BASE_SAVE_BUTTON_FONT * scale, LayoutConstants.MIN_SAVE_BUTTON_FONT);
+            this.themeIconSize = Math.max(LayoutConstants.BASE_THEME_ICON_SIZE * scale, LayoutConstants.MIN_THEME_ICON_SIZE);
+            this.themeButtonSize = Math.max(LayoutConstants.BASE_THEME_BUTTON_SIZE * scale, LayoutConstants.MIN_THEME_BUTTON_SIZE);
+            this.backIconSize = Math.max(LayoutConstants.BASE_BACK_ICON_SIZE * scale, LayoutConstants.MIN_BACK_ICON_SIZE);
+            this.backButtonSize = Math.max(LayoutConstants.BASE_BACK_BUTTON_SIZE * scale, LayoutConstants.MIN_BACK_BUTTON_SIZE);
+            this.mainSpacing = Math.max(LayoutConstants.BASE_MAIN_SPACING * scale, LayoutConstants.MIN_MAIN_SPACING);
+            this.formatSpacing = Math.max(LayoutConstants.BASE_FORMAT_SPACING * scale, LayoutConstants.MIN_FORMAT_SPACING);
+            this.directorySpacing = Math.max(LayoutConstants.BASE_DIRECTORY_SPACING * scale, LayoutConstants.MIN_DIRECTORY_SPACING);
+            // New fields: remove button/icon sizes
+            this.removeButtonSize = Math.max(LayoutConstants.BASE_SWAP_BUTTON_SIZE * scale, LayoutConstants.MIN_SWAP_BUTTON_SIZE);
+            this.removeIconSize = Math.max(LayoutConstants.BASE_ARROW_ICON_SIZE * scale, LayoutConstants.MIN_ARROW_ICON_SIZE);
+        }
+    }
+
+    /**
+     * Computes a new ScaledSizes based on the given scale factor.
+     *
+     * @param scale  the scale factor calculated from window dimensions
+     * @return       a fresh ScaledSizes instance
+     */
+    private ScaledSizes calculateScaledSizes(double scale) {
+        return new ScaledSizes(scale);
+    }
+
+    /**
+     * Applies each value in the provided ScaledSizes to the matching UI control.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void applyProportionalSizes(ScaledSizes sizes) {
+        try {
+            // Update title
+            titleLabel.setStyle(String.format("-fx-font-size: %.1fpx;", sizes.titleSize));
+
+            // Update main VBox spacing
+            mainVBox.setSpacing(sizes.mainSpacing);
+
+            // Update format selection area
+            updateFormatSelectionSizes(sizes);
+
+            // Update drop zone
+            updateDropZoneSizes(sizes);
+
+            // Update table view
+            updateTableViewSizes(sizes);
+
+            // Update directory picker
+            updateDirectoryPickerSizes(sizes);
+
+            // Update save button
+            updateSaveButtonSizes(sizes);
+
+            // Update navigation buttons
+            updateNavigationButtonSizes(sizes);
+            // Update remove-button sizes in table cells
+            updateRemoveButtonSizes(sizes);
+
+            LOGGER.fine(String.format("Applied proportional sizes - Scale factor applied, Title: %.1f, DropZone: %.1fx%.1f",
+                    sizes.titleSize, sizes.dropZoneWidth, sizes.dropZoneHeight));
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error applying proportional sizes", e);
+        }
+    }
+
+    /**
+     * Resizes and restyles the format‐selection HBox, its labels, combo‐boxes, and swap button.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void updateFormatSelectionSizes(ScaledSizes sizes) {
+        try {
+            // Update container spacing
+            if (formatSelectionContainer != null) {
+                formatSelectionContainer.setSpacing(sizes.formatSpacing);
+            }
+
+            // Update combo boxes
+            String comboStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-pref-width: %.1fpx; -fx-max-width: %.1fpx; " +
+                            "-fx-min-height: %.1fpx; -fx-pref-height: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-font-size: %.1fpx;",
+                    sizes.comboWidth, sizes.comboWidth, sizes.comboWidth,
+                    sizes.comboHeight, sizes.comboHeight, sizes.comboHeight,
+                    sizes.labelSize
+            );
+
+            sourceFormatComboBox.setStyle(comboStyle);
+            targetFormatComboBox.setStyle(comboStyle);
+
+            // Ensure both combos stay exactly the same size
+            if (sourceFormatComboBox != null) {
+                sourceFormatComboBox.setMinWidth(sizes.comboWidth);
+                sourceFormatComboBox.setPrefWidth(sizes.comboWidth);
+                sourceFormatComboBox.setMaxWidth(sizes.comboWidth);
+                sourceFormatComboBox.setMinHeight(sizes.comboHeight);
+                sourceFormatComboBox.setPrefHeight(sizes.comboHeight);
+                sourceFormatComboBox.setMaxHeight(sizes.comboHeight);
+            }
+            if (targetFormatComboBox != null) {
+                targetFormatComboBox.setMinWidth(sizes.comboWidth);
+                targetFormatComboBox.setPrefWidth(sizes.comboWidth);
+                targetFormatComboBox.setMaxWidth(sizes.comboWidth);
+                targetFormatComboBox.setMinHeight(sizes.comboHeight);
+                targetFormatComboBox.setPrefHeight(sizes.comboHeight);
+                targetFormatComboBox.setMaxHeight(sizes.comboHeight);
+            }
+
+            // Update swap button
+            String swapButtonStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-min-height: %.1fpx; " +
+                            "-fx-max-width: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-pref-width: %.1fpx; -fx-pref-height: %.1fpx;",
+                    sizes.swapButtonSize, sizes.swapButtonSize,
+                    sizes.swapButtonSize, sizes.swapButtonSize,
+                    sizes.swapButtonSize, sizes.swapButtonSize
+            );
+            swapButton.setStyle(swapButtonStyle);
+
+            // Update arrow icon
+            if (arrowIcon != null) {
+                arrowIcon.setIconSize((int) Math.round(sizes.arrowIconSize));
+            }
+
+            // Update format labels in VBoxes (find labels in the format selection containers)
+            if (formatSelectionContainer != null) {
+                formatSelectionContainer.getChildren().forEach(node -> {
+                    if (node instanceof VBox vbox) {
+                        vbox.getChildren().forEach(child -> {
+                            if (child instanceof Label label && label.getText().contains("Convert")) {
+                                label.setStyle(String.format("-fx-font-size: %.1fpx;", sizes.labelSize));
+                            }
+                        });
+                    }
+                });
+            }
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating format selection sizes", e);
+        }
+    }
+
+    /**
+     * Updates the drop‐zone pane’s min/pref/max dimensions and font size.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void updateDropZoneSizes(ScaledSizes sizes) {
+        try {
+            String dropZoneStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-pref-width: %.1fpx; -fx-max-width: %.1fpx; " +
+                            "-fx-min-height: %.1fpx; -fx-pref-height: %.1fpx; -fx-max-height: %.1fpx;",
+                    sizes.dropZoneWidth, sizes.dropZoneWidth, sizes.dropZoneWidth,
+                    sizes.dropZoneHeight, sizes.dropZoneHeight, sizes.dropZoneHeight
+            );
+            dropZone.setStyle(dropZoneStyle);
+
+            if (dropZoneLabel != null) {
+                dropZoneLabel.setStyle(String.format("-fx-font-size: %.1fpx;", sizes.dropZoneFont));
+            }
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating drop zone sizes", e);
+        }
+    }
+
+    /**
+     * Constrains the file TableView’s width/height and font size.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void updateTableViewSizes(ScaledSizes sizes) {
+        try {
+            // Constrain table width to 65% of current window width and center it
+            Window window = titleLabel.getScene().getWindow();
+            double tableWidth = window.getWidth() * 0.65;
+            fileTableView.setMinWidth(tableWidth);
+            fileTableView.setPrefWidth(tableWidth);
+            fileTableView.setMaxWidth(tableWidth);
+            String tableStyle = String.format(
+                    "-fx-min-height: %.1fpx; -fx-pref-height: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-font-size: %.1fpx;",
+                    sizes.tableHeight, sizes.tableHeight, sizes.tableHeight,
+                    sizes.tableFont
+            );
+            fileTableView.setStyle(tableStyle);
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating table view sizes", e);
+        }
+    }
+
+    /**
+     * Adjusts the directory‐picker TextField and Browse button to scaled dimensions.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void updateDirectoryPickerSizes(ScaledSizes sizes) {
+        try {
+            // Update container spacing
+            if (directoryPickerContainer != null) {
+                directoryPickerContainer.setSpacing(sizes.directorySpacing);
+            }
+
+            // Update directory field
+            String fieldStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-pref-width: %.1fpx; " +
+                            "-fx-min-height: %.1fpx; -fx-pref-height: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-font-size: %.1fpx;",
+                    sizes.directoryFieldWidth, sizes.directoryFieldWidth,
+                    sizes.directoryFieldHeight, sizes.directoryFieldHeight, sizes.directoryFieldHeight,
+                    sizes.labelSize
+            );
+            directoryField.setStyle(fieldStyle);
+
+            // Update browse button
+            String browseStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-pref-width: %.1fpx; -fx-max-width: %.1fpx; " +
+                            "-fx-min-height: %.1fpx; -fx-pref-height: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-font-size: %.1fpx;",
+                    sizes.browseButtonWidth, sizes.browseButtonWidth, sizes.browseButtonWidth,
+                    sizes.browseButtonHeight, sizes.browseButtonHeight, sizes.browseButtonHeight,
+                    sizes.labelSize
+            );
+            browseDirBtn.setStyle(browseStyle);
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating directory picker sizes", e);
+        }
+    }
+
+
+    /**
+     * Adjusts the Save button to scaled dimensions and font size.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void updateSaveButtonSizes(ScaledSizes sizes) {
+        try {
+            String saveStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-pref-width: %.1fpx; -fx-max-width: %.1fpx; " +
+                            "-fx-min-height: %.1fpx; -fx-pref-height: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-font-size: %.1fpx;",
+                    sizes.saveButtonWidth, sizes.saveButtonWidth, sizes.saveButtonWidth,
+                    sizes.saveButtonHeight, sizes.saveButtonHeight, sizes.saveButtonHeight,
+                    sizes.saveButtonFont
+            );
+            saveBtn.setStyle(saveStyle);
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating save button sizes", e);
+        }
+    }
+
+    /**
+     * Resizes the theme‐toggle and back buttons (and their icons) proportionally.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void updateNavigationButtonSizes(ScaledSizes sizes) {
+        try {
+            // Update theme toggle button
+            String themeButtonStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-min-height: %.1fpx; " +
+                            "-fx-max-width: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-pref-width: %.1fpx; -fx-pref-height: %.1fpx;",
+                    sizes.themeButtonSize, sizes.themeButtonSize,
+                    sizes.themeButtonSize, sizes.themeButtonSize,
+                    sizes.themeButtonSize, sizes.themeButtonSize
+            );
+            themeToggleBtn.setStyle(themeButtonStyle);
+
+            // Update theme icon
+            if (themeToggleBtn.getGraphic() instanceof FontIcon themeIcon) {
+                themeIcon.setIconSize((int) Math.round(sizes.themeIconSize));
+            }
+
+            // Update back button
+            String backButtonStyle = String.format(
+                    "-fx-min-width: %.1fpx; -fx-min-height: %.1fpx; " +
+                            "-fx-max-width: %.1fpx; -fx-max-height: %.1fpx; " +
+                            "-fx-pref-width: %.1fpx; -fx-pref-height: %.1fpx;",
+                    sizes.backButtonSize, sizes.backButtonSize,
+                    sizes.backButtonSize, sizes.backButtonSize,
+                    sizes.backButtonSize, sizes.backButtonSize
+            );
+            backButton.setStyle(backButtonStyle);
+
+            // Update back icon
+            if (backButton.getGraphic() instanceof FontIcon backIcon) {
+                backIcon.setIconSize((int) Math.round(sizes.backIconSize));
+            }
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating navigation button sizes", e);
+        }
+    }
+
+    /**
+     * Resizes all “remove” buttons/icons inside the file table.
+     *
+     * @param sizes  container of all computed pixel values
+     */
+    private void updateRemoveButtonSizes(ScaledSizes sizes) {
+        try {
+            // Style all remove buttons in the table
+            String btnStyle = String.format(
+                "-fx-min-width: %.1fpx; -fx-pref-width: %.1fpx; -fx-max-width: %.1fpx;"
+              + "-fx-min-height: %.1fpx; -fx-pref-height: %.1fpx; -fx-max-height: %.1fpx;",
+                sizes.removeButtonSize, sizes.removeButtonSize, sizes.removeButtonSize,
+                sizes.removeButtonSize, sizes.removeButtonSize, sizes.removeButtonSize
+            );
+            String iconSizeCss = String.format("-fx-icon-size: %dpx;", (int)Math.round(sizes.removeIconSize));
+
+            // Apply to each button via style class
+            fileTableView.lookupAll(".remove-btn").forEach(node -> {
+                if (node instanceof Button btn) {
+                    btn.setStyle(btnStyle);
+                    if (btn.getGraphic() instanceof FontIcon icon) {
+                        icon.setIconSize((int)Math.round(sizes.removeIconSize));
+                    }
+                }
+            });
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error updating remove button sizes", e);
+        }
+    }
+
+    /**
+     * Enforces minimum window size and sets initial size.
+     */
+    private void enforceMinimumWindowSize() {
+        Platform.runLater(() -> {
+            try {
+                if (titleLabel.getScene() != null && titleLabel.getScene().getWindow() instanceof Stage stage) {
+                    double minWidth = calculateAbsoluteMinWidth();
+                    double minHeight = calculateAbsoluteMinHeight();
+
+                    stage.setMinWidth(LayoutConstants.BASE_WINDOW_WIDTH);
+                    stage.setMinHeight(LayoutConstants.BASE_WINDOW_HEIGHT);
+
+                    // Set initial size to base dimensions if window is smaller
+                    if (stage.getWidth() < LayoutConstants.BASE_WINDOW_WIDTH) {
+                        stage.setWidth(LayoutConstants.BASE_WINDOW_WIDTH);
+                    }
+                    if (stage.getHeight() < LayoutConstants.BASE_WINDOW_HEIGHT) {
+                        stage.setHeight(LayoutConstants.BASE_WINDOW_HEIGHT);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "Error enforcing minimum window size", e);
+            }
+        });
+    }
+
+    /**
+     * Calculates absolute minimum width needed.
+     */
+    private double calculateAbsoluteMinWidth() {
+        return Math.max(
+                LayoutConstants.MIN_DROP_ZONE_WIDTH + LayoutConstants.BORDER_PANE_PADDING,
+                (2 * LayoutConstants.MIN_COMBO_WIDTH) + LayoutConstants.MIN_SWAP_BUTTON_SIZE +
+                        (2 * LayoutConstants.MIN_FORMAT_SPACING) + LayoutConstants.BORDER_PANE_PADDING
+        );
+    }
+
+    /**
+     * Calculates absolute minimum height needed.
+     */
+    private double calculateAbsoluteMinHeight() {
+        return LayoutConstants.MIN_TITLE_SIZE +
+                LayoutConstants.MIN_COMBO_HEIGHT +
+                LayoutConstants.MIN_DROP_ZONE_HEIGHT +
+                LayoutConstants.MIN_TABLE_HEIGHT +
+                LayoutConstants.MIN_DIRECTORY_FIELD_HEIGHT +
+                LayoutConstants.MIN_SAVE_BUTTON_HEIGHT +
+                (5 * LayoutConstants.MIN_MAIN_SPACING) +
+                LayoutConstants.TOP_SECTION_HEIGHT +
+                LayoutConstants.BORDER_PANE_PADDING;
+    }
+
+    /**
+     * Checks if debug mode is enabled.
+     */
+    private boolean isDebugMode() {
+        return Boolean.parseBoolean(System.getProperty("app.debug", "false"));
+    }
+
+    /**
+     * Sets up theme management using ThemeManager.
+     */
+    private void setupTheme() {
+        try {
+            themeManager = ThemeManager.getInstance();
+
+            // Apply theme to current scene and setup toggle button
+            Platform.runLater(() -> {
+                if (titleLabel.getScene() != null) {
+                    themeManager.initializeTheme(titleLabel.getScene(), themeToggleBtn);
+                }
+            });
+
+            // If scene is not ready yet, wait for it
+            titleLabel.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                if (newScene != null) {
+                    themeManager.initializeTheme(newScene, themeToggleBtn);
+                }
+            });
+
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting up theme management", e);
+        }
+    }
+
+
+    /**
+     * Changes the active conversion category and refreshes formats/UI.
+     *
+     * @param categoryText  display name of the new category ("Images", "Audio", "Video")
+     */
+    public void setConversionCategory(String categoryText) {
+        try {
+            this.conversionCategory = ConversionCategory.fromString(categoryText);
+            updateTitle();
+            updateFormatComboBoxes();
+            resetPageExceptDirectory();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting conversion category: " + categoryText, e);
+        }
+    }
+
+    /**
+     * Updates the title label based on the current conversion category.
+     */
+    private void updateTitle() {
+        if (titleLabel != null) {
+            titleLabel.setText(conversionCategory.getDisplayName() + " Conversion");
+        }
+    }
+
+    /**
+     * Updates format combo boxes based on current conversion category.
+     */
+    private void updateFormatComboBoxes() {
+        Map<String, Set<String>> formats = ConversionMappings.MAPPINGS.get(conversionCategory);
+        if (formats != null) {
+            sourceFormatComboBox.getItems().clear();
+            sourceFormatComboBox.getItems().addAll(formats.keySet());
+
+            targetFormatComboBox.getItems().clear();
+            // Will be populated when source format is selected
+        }
+    }
+
+
+    /**
+     * Sets up the file table view with proper columns and cell factories.
      */
     private void setupTableView() {
-        fileNameColumn.setCellValueFactory(cellData -> cellData.getValue().fileNameProperty());
-        removeButtonColumn.setCellFactory(column -> new RemoveButtonTableCell());
-        removeButtonColumn.setSortable(false);
-        removeButtonColumn.setResizable(false);
+        fileNameColumn.setCellValueFactory(new PropertyValueFactory<>("fileName"));
+
+        removeButtonColumn.setCellFactory(tableColumn -> new TableCell<>() {
+            private final Button removeButton = createRemoveButton();
+
+            private Button createRemoveButton() {
+                Button removeBtn = new Button();
+                FontIcon closeIcon = new FontIcon("mdi2c-close");
+                closeIcon.setIconSize(16);
+                removeBtn.setGraphic(closeIcon);
+                removeBtn.getStyleClass().add("remove-btn");
+                removeBtn.setOnAction(actionEvent -> {
+                    FileItem selectedItem = getTableView().getItems().get(getIndex());
+                    removeFile(selectedItem.getFile());
+                });
+                return removeBtn;
+            }
+
+            @Override
+            protected void updateItem(Button buttonItem, boolean isEmpty) {
+                super.updateItem(buttonItem, isEmpty);
+                if (isEmpty || getIndex() >= getTableView().getItems().size()) {
+                    setGraphic(null);
+                } else {
+                    setGraphic(removeButton);
+                }
+            }
+        });
     }
 
+
     /**
-     * Sets up all event handlers for UI components.
+     * Sets up the drag and drop zone functionality.
      */
-    private void setupEventHandlers() {
-        // File selection handlers
-        dropZone.setOnMouseClicked(e -> openFileChooser());
-        browseDirBtn.setOnAction(e -> openDirectoryChooser());
-
-        // Navigation and action handlers
-        backButton.setOnAction(e -> goBackToStartView());
-        saveBtn.setOnAction(e -> onSaveClick());
-        swapButton.setOnAction(e -> onSwapFormats());
-
-        // Drag and drop handlers
-        dropZone.setOnDragOver(this::onDragOver);
-        dropZone.setOnDragDropped(this::onDragDropped);
-        dropZone.setOnDragEntered(this::onDragEntered);
-        dropZone.setOnDragExited(this::onDragExited);
+    private void setupDropZone() {
+        dropZone.setOnMouseClicked(event -> openFileChooser());
     }
 
     /**
-     * Configures format combo boxes with change listeners.
+     * Updates drag and drop validation message based on selected format.
+     */
+    private void updateDropZoneMessage() {
+        String selectedFormat = sourceFormatComboBox.getSelectionModel().getSelectedItem();
+
+        if (selectedFormat != null) {
+            dropZoneLabel.setText("Drop " + selectedFormat + " files here or click to select");
+        } else {
+            dropZoneLabel.setText("Drop files here or click to select");
+        }
+    }
+
+
+    /**
+     * Filters a list of files down to only those valid for the current source format.
+     *
+     * @param filesToFilter  list of user‐dropped or chosen File objects
+     * @return               only those files matching the selected format
+     */
+    private List<File> filterValidFiles(List<File> filesToFilter) {
+        String selectedFormat = sourceFormatComboBox.getSelectionModel().getSelectedItem();
+        List<File> validFiles = new ArrayList<>();
+
+        for (File currentFile : filesToFilter) {
+            boolean isValidFile;
+            if (selectedFormat != null) {
+                isValidFile = isValidForSelectedFormat(currentFile);
+            } else {
+                isValidFile = isValidFileType(currentFile);
+            }
+
+            if (isValidFile) {
+                validFiles.add(currentFile);
+            }
+        }
+
+        return validFiles;
+    }
+
+    /**
+     * Drag‐over event handler for the drop zone.
+     *
+     * @param dragEvent  the DragEvent fired by JavaFX
+     */
+    @FXML
+    private void onDragOver(DragEvent dragEvent) {
+        if (dragEvent.getGestureSource() != dropZone && dragEvent.getDragboard().hasFiles()) {
+            dragEvent.acceptTransferModes(TransferMode.COPY_OR_MOVE);
+        }
+        dragEvent.consume();
+    }
+
+    /**
+     * Drag‐dropped event handler; adds valid files or shows an error.
+     *
+     * @param dragEvent  the DragEvent fired by JavaFX
+     */
+    @FXML
+    private void onDragDropped(DragEvent dragEvent) {
+        Dragboard dragboard = dragEvent.getDragboard();
+        boolean operationSuccess = false;
+
+        if (dragboard.hasFiles()) {
+            List<File> droppedFiles = dragboard.getFiles();
+            List<File> validFiles = filterValidFiles(droppedFiles);
+
+            if (!validFiles.isEmpty()) {
+                addFiles(validFiles);
+                operationSuccess = true;
+            } else {
+                String selectedFormat = sourceFormatComboBox.getSelectionModel().getSelectedItem();
+                String expectedFormat = selectedFormat != null ? selectedFormat :
+                        conversionCategory.getDisplayName().toLowerCase();
+                showAlert("Invalid File Types",
+                        "Please select valid " + expectedFormat + " files for conversion.");
+            }
+        }
+
+        dragEvent.setDropCompleted(operationSuccess);
+        dragEvent.consume();
+    }
+
+    /**
+     * Drag‐entered event handler; highlights the drop zone.
+     *
+     * @param dragEvent  the DragEvent fired by JavaFX
+     */
+    @FXML
+    private void onDragEntered(DragEvent dragEvent) {
+        if (dragEvent.getGestureSource() != dropZone && dragEvent.getDragboard().hasFiles()) {
+            dropZone.getStyleClass().add("drag-over");
+        }
+        dragEvent.consume();
+    }
+
+    /**
+     * Drag‐exited event handler; removes the drop‐zone highlight.
+     *
+     * @param dragEvent  the DragEvent fired by JavaFX
+     */
+    @FXML
+    private void onDragExited(DragEvent dragEvent) {
+        dropZone.getStyleClass().remove("drag-over");
+        dragEvent.consume();
+    }
+
+    /**
+     * Sets up the directory browser functionality.
+     */
+    private void setupDirectoryBrowser() {
+        browseDirBtn.setOnAction(actionEvent -> chooseOutputDirectory());
+        directoryField.textProperty().addListener((observableValue, previousText, currentText) -> updateSaveButtonState());
+    }
+
+
+    /**
+     * Sets up the format combo boxes with appropriate listeners.
      */
     private void setupFormatComboBoxes() {
-        sourceFormatComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
-            updateTargetFormatOptions();
-            updateDropZonePrompt();
-        });
+        sourceFormatComboBox.getSelectionModel().selectedItemProperty().addListener(
+                (observableValue, previousValue, selectedValue) -> {
+                    updateTargetFormats(selectedValue);
+                    updateDropZoneMessage();
+                    // Reset everything except directory when source format changes
+                    if (previousValue != null && selectedValue != null && !previousValue.equals(selectedValue)) {
+                        resetPageExceptDirectory();
+                    }
+                }
+        );
+
+        targetFormatComboBox.getSelectionModel().selectedItemProperty().addListener(
+                (observableValue, previousValue, selectedValue) -> updateSaveButtonState()
+        );
     }
 
+
     /**
-     * Sets up theme toggle functionality.
+     * Updates target format combo box based on selected source format.
      */
-    private void setupThemeToggle() {
-        themeToggleBtn.selectedProperty().addListener((obs, oldVal, selected) -> {
-            darkMode = selected;
-            toggleTheme(selected);
-            updateThemeIcon();
-        });
-    }
-
-    /**
-     * Sets the conversion type and initializes format options.
-     *
-     * @param type the conversion type string ("Images", "Media", "Docs", etc.)
-     */
-    public void setConversionType(String type) {
-        try {
-            this.conversionCategory = ConversionCategory.fromString(type);
-            populateSourceFormats();
-        } catch (IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Invalid conversion type: " + type, e);
-            showAlert(Alert.AlertType.ERROR, "Configuration Error",
-                    "Invalid conversion type", "The specified conversion type is not supported.");
+    private void updateTargetFormats(String sourceFormat) {
+        Map<String, Set<String>> formats = ConversionMappings.MAPPINGS.get(conversionCategory);
+        if (formats != null && formats.containsKey(sourceFormat)) {
+            targetFormatComboBox.getItems().clear();
+            targetFormatComboBox.getItems().addAll(formats.get(sourceFormat));
         }
     }
 
     /**
-     * Populates source format combo box based on current conversion category.
-     * For MEDIA category, includes both audio and video formats with logical grouping.
-     */
-    private void populateSourceFormats() {
-        var availableFormats = CONVERSION_MAPPINGS.get(conversionCategory).keySet();
-
-        List<String> sourceFormats;
-
-        if (conversionCategory == ConversionCategory.MEDIA) {
-            // For media, group audio formats first, then video formats
-            sourceFormats = new ArrayList<>();
-
-            // Add audio formats first (sorted)
-            availableFormats.stream()
-                    .filter(AUDIO_FORMATS::contains)
-                    .sorted()
-                    .forEach(sourceFormats::add);
-
-            // Add video formats second (sorted)
-            availableFormats.stream()
-                    .filter(VIDEO_FORMATS::contains)
-                    .sorted()
-                    .forEach(sourceFormats::add);
-        } else {
-            // For other categories, simple alphabetical sort
-            sourceFormats = availableFormats.stream()
-                    .sorted()
-                    .collect(Collectors.toList());
-        }
-
-        sourceFormatComboBox.setItems(FXCollections.observableList(sourceFormats));
-
-        // Auto-select first format if available
-        if (!sourceFormats.isEmpty()) {
-            sourceFormatComboBox.getSelectionModel().selectFirst();
-        }
-    }
-
-    /**
-     * Updates target format options based on selected source format.
-     */
-    private void updateTargetFormatOptions() {
-        String selectedSource = sourceFormatComboBox.getValue();
-        if (selectedSource == null) {
-            targetFormatComboBox.setItems(FXCollections.observableArrayList());
-            return;
-        }
-
-        var targetOptions = CONVERSION_MAPPINGS.get(conversionCategory)
-                .getOrDefault(selectedSource, Set.of())
-                .stream()
-                .sorted()
-                .collect(Collectors.toList());
-
-        targetFormatComboBox.setItems(FXCollections.observableList(targetOptions));
-
-        // Clear invalid selection
-        if (!targetOptions.contains(targetFormatComboBox.getValue())) {
-            targetFormatComboBox.setValue(null);
-        }
-
-        // Auto-select first target if available
-        if (!targetOptions.isEmpty() && targetFormatComboBox.getValue() == null) {
-            targetFormatComboBox.getSelectionModel().selectFirst();
-        }
-    }
-
-    /**
-     * Handles swapping source and target format selections.
-     * Enhanced to handle media format type restrictions (audio ↔ audio, video ↔ video).
+     * Swaps the source and target selections in their ComboBoxes.
      */
     @FXML
     private void onSwapFormats() {
-        String currentSource = sourceFormatComboBox.getValue();
-        String currentTarget = targetFormatComboBox.getValue();
+        String source = sourceFormatComboBox.getValue();
+        String target = targetFormatComboBox.getValue();
 
-        if (currentSource == null || currentTarget == null) return;
-
-        // Check if swap is valid
-        var sourceItems = sourceFormatComboBox.getItems();
-        if (sourceItems.contains(currentTarget)) {
-            // Additional validation for media formats
-            if (conversionCategory == ConversionCategory.MEDIA) {
-                // Ensure we're not trying to swap between audio and video formats
-                boolean sourceIsAudio = AUDIO_FORMATS.contains(currentSource);
-                boolean targetIsAudio = AUDIO_FORMATS.contains(currentTarget);
-
-                if (sourceIsAudio != targetIsAudio) {
-                    // Cannot swap between audio and video - show warning
-                    showAlert(Alert.AlertType.INFORMATION, "Format Swap",
-                            "Cannot swap between audio and video formats",
-                            "Audio formats can only be converted to other audio formats, and video formats to other video formats.");
-                    return;
-                }
-            }
-
-            sourceFormatComboBox.setValue(currentTarget);
-            // Update target options and set new target
-            Platform.runLater(() -> {
-                if (targetFormatComboBox.getItems().contains(currentSource)) {
-                    targetFormatComboBox.setValue(currentSource);
-                }
-            });
+        if (source != null && target != null) {
+            sourceFormatComboBox.setValue(target);
+            updateTargetFormats(target);
+            targetFormatComboBox.setValue(source);
         }
     }
 
     /**
-     * Updates drop zone prompt text based on selected source format.
-     * Enhanced to show format type (Audio/Video) for media formats.
+     * Sets up button actions for navigation and theme.
      */
-    private void updateDropZonePrompt() {
-        String sourceFormat = sourceFormatComboBox.getValue();
-        if (sourceFormat == null) {
-            dropZoneLabel.setText("Drop files here or click to select");
-            return;
-        }
-
-        String formatType = "";
-        if (conversionCategory == ConversionCategory.MEDIA) {
-            if (AUDIO_FORMATS.contains(sourceFormat)) {
-                formatType = " audio";
-            } else if (VIDEO_FORMATS.contains(sourceFormat)) {
-                formatType = " video";
-            }
-        }
-
-        String promptText = String.format("Drop %s%s files here or click to select", sourceFormat, formatType);
-        dropZoneLabel.setText(promptText);
-    }
-
-    /**
-     * Sets up responsive layout after scene becomes available.
-     */
-    private void setup() {
-        if (titleLabel.getScene() != null) {
-            setupSceneListeners();
-            setupWindowConstraints();
-            updateLayout();
-        } else {
-            Platform.runLater(this::setup);
-        }
-    }
-
-    /**
-     * Navigates back to the start view, preserving theme state.
-     */
-    private void goBackToStartView() {
+    private void setupButtonActions() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("start-view.fxml"));
-            Parent startView = loader.load();
+            // Back button
+            backButton.setOnAction(e -> goBackToStartView());
 
-            // Pass theme state to start view controller
-            StartViewController startController = loader.getController();
-            if (startController != null) {
-                startController.setThemeState(darkMode);
-            }
+            // Theme is now handled by ThemeManager in setupTheme()
 
-            Scene currentScene = titleLabel.getScene();
-            if (currentScene != null) {
-                currentScene.setRoot(startView);
-            }
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Failed to load start view", e);
-            showAlert(Alert.AlertType.ERROR, "Navigation Error",
-                    "Failed to return to start screen", "An error occurred while loading the start view.");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error setting up button actions", e);
         }
     }
 
     /**
-     * Sets up scene dimension listeners for responsive layout.
-     */
-    private void setupSceneListeners() {
-        Scene scene = titleLabel.getScene();
-        if (scene != null) {
-            scene.widthProperty().addListener((obs, oldWidth, newWidth) -> updateLayout());
-            scene.heightProperty().addListener((obs, oldHeight, newHeight) -> updateLayout());
-        }
-    }
-
-    /**
-     * Configures minimum window size constraints.
-     */
-    private void setupWindowConstraints() {
-        Scene scene = titleLabel.getScene();
-        if (scene != null) {
-            Window window = scene.getWindow();
-            if (window instanceof Stage stage) {
-                stage.setMinWidth(LayoutConstants.MIN_WINDOW_WIDTH);
-                stage.setMinHeight(LayoutConstants.MIN_WINDOW_HEIGHT);
-            }
-        }
-    }
-
-    /**
-     * Updates all component sizes proportionally based on window size.
-     */
-    private void updateLayout() {
-        Scene scene = titleLabel.getScene();
-        if (scene == null) return;
-
-        double windowWidth = scene.getWidth();
-        double windowHeight = scene.getHeight();
-
-        updateTitleStyle(windowWidth);
-        updateComboBoxSizes(windowWidth);
-        updateDropZoneSize(windowWidth, windowHeight);
-        updateTableSize(windowHeight);
-        updateButtonSizes(windowWidth);
-        updateTextFieldSize(windowWidth);
-    }
-
-    /**
-     * Updates title font size proportionally to window width.
-     */
-    private void updateTitleStyle(double windowWidth) {
-        double scaleFactor = Math.min(1.0, (windowWidth - LayoutConstants.MIN_WINDOW_WIDTH) / LayoutConstants.RESPONSIVE_SCALE_WIDTH);
-        double fontSize = LayoutConstants.MIN_TITLE_SIZE +
-                (LayoutConstants.MAX_TITLE_SIZE - LayoutConstants.MIN_TITLE_SIZE) * scaleFactor;
-        titleLabel.setStyle(String.format("-fx-font-size: %.1fpx;", fontSize));
-    }
-
-    /**
-     * Updates combo box sizes proportionally to window width.
-     */
-    private void updateComboBoxSizes(double windowWidth) {
-        double scaleFactor = Math.min(1.0, (windowWidth - LayoutConstants.MIN_WINDOW_WIDTH) / LayoutConstants.RESPONSIVE_SCALE_WIDTH);
-        double comboWidth = LayoutConstants.MIN_COMBO_WIDTH +
-                (LayoutConstants.MAX_COMBO_WIDTH - LayoutConstants.MIN_COMBO_WIDTH) * scaleFactor;
-
-        sourceFormatComboBox.setPrefWidth(comboWidth);
-        targetFormatComboBox.setPrefWidth(comboWidth);
-    }
-
-    /**
-     * Updates drop zone size proportionally to window dimensions.
-     */
-    private void updateDropZoneSize(double windowWidth, double windowHeight) {
-        double widthScaleFactor = Math.min(1.0, (windowWidth - LayoutConstants.MIN_WINDOW_WIDTH) / LayoutConstants.RESPONSIVE_SCALE_WIDTH);
-        double heightScaleFactor = Math.min(1.0, (windowHeight - LayoutConstants.MIN_WINDOW_HEIGHT) / LayoutConstants.RESPONSIVE_SCALE_HEIGHT);
-
-        double dropZoneWidth = LayoutConstants.MIN_DROPZONE_WIDTH +
-                (LayoutConstants.MAX_DROPZONE_WIDTH - LayoutConstants.MIN_DROPZONE_WIDTH) * widthScaleFactor;
-        double dropZoneHeight = LayoutConstants.MIN_DROPZONE_HEIGHT +
-                (LayoutConstants.MAX_DROPZONE_HEIGHT - LayoutConstants.MIN_DROPZONE_HEIGHT) * heightScaleFactor;
-
-        dropZone.setPrefWidth(dropZoneWidth);
-        dropZone.setPrefHeight(dropZoneHeight);
-    }
-
-    /**
-     * Updates table size proportionally to window height.
-     */
-    private void updateTableSize(double windowHeight) {
-        double scaleFactor = Math.min(1.0, (windowHeight - LayoutConstants.MIN_WINDOW_HEIGHT) / LayoutConstants.RESPONSIVE_SCALE_HEIGHT);
-        double tableHeight = LayoutConstants.MIN_TABLE_HEIGHT +
-                (LayoutConstants.MAX_TABLE_HEIGHT - LayoutConstants.MIN_TABLE_HEIGHT) * scaleFactor;
-        fileTableView.setPrefHeight(tableHeight);
-    }
-
-    /**
-     * Updates button sizes proportionally to window width.
-     */
-    private void updateButtonSizes(double windowWidth) {
-        double scaleFactor = Math.min(1.0, (windowWidth - LayoutConstants.MIN_WINDOW_WIDTH) / LayoutConstants.RESPONSIVE_SCALE_WIDTH);
-        double buttonSize = LayoutConstants.MIN_BUTTON_SIZE +
-                (LayoutConstants.MAX_BUTTON_SIZE - LayoutConstants.MIN_BUTTON_SIZE) * scaleFactor;
-
-        browseDirBtn.setPrefWidth(buttonSize);
-        saveBtn.setPrefWidth(Math.max(110, buttonSize));
-    }
-
-    /**
-     * Updates text field size proportionally to window width.
-     */
-    private void updateTextFieldSize(double windowWidth) {
-        double scaleFactor = Math.min(1.0, (windowWidth - LayoutConstants.MIN_WINDOW_WIDTH) / LayoutConstants.RESPONSIVE_SCALE_WIDTH);
-        double textFieldWidth = LayoutConstants.MIN_TEXTFIELD_WIDTH +
-                (LayoutConstants.MAX_TEXTFIELD_WIDTH - LayoutConstants.MIN_TEXTFIELD_WIDTH) * scaleFactor;
-        directoryField.setPrefWidth(textFieldWidth);
-    }
-
-    /**
-     * Sets the theme state for this controller.
-     *
-     * @param isDarkMode true if dark mode should be enabled, false for light mode
-     */
-    public void setThemeState(boolean isDarkMode) {
-        this.darkMode = isDarkMode;
-        Platform.runLater(() -> {
-            toggleTheme(isDarkMode);
-            themeToggleBtn.setSelected(isDarkMode);
-            updateThemeIcon();
-            updateBackButtonIcon();
-        });
-    }
-
-    /**
-     * Updates back button icon color based on current theme.
-     */
-    private void updateBackButtonIcon() {
-        if (backButton.getGraphic() instanceof FontIcon backIcon) {
-            backIcon.setIconColor(Paint.valueOf(darkMode ? "#ffd740" : "#888"));
-        }
-    }
-
-    // Drag and Drop Event Handlers
-
-    @FXML
-    private void onDragOver(DragEvent event) {
-        if (event.getGestureSource() != dropZone && event.getDragboard().hasFiles()) {
-            event.acceptTransferModes(TransferMode.COPY_OR_MOVE);
-        }
-        event.consume();
-    }
-
-    @FXML
-    private void onDragDropped(DragEvent event) {
-        Dragboard dragboard = event.getDragboard();
-        boolean success = false;
-
-        if (dragboard.hasFiles()) {
-            List<File> validFiles = filterValidFiles(dragboard.getFiles());
-            if (!validFiles.isEmpty()) {
-                addFilesToList(validFiles);
-                success = true;
-            } else if (!dragboard.getFiles().isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "Invalid Files",
-                        "No valid files found", "The dropped files don't match the selected source format.");
-            }
-        }
-
-        event.setDropCompleted(success);
-        event.consume();
-    }
-
-    @FXML
-    private void onDragEntered(DragEvent event) {
-        if (event.getGestureSource() != dropZone && event.getDragboard().hasFiles()) {
-            dropZone.getStyleClass().add("drag-over");
-        }
-        event.consume();
-    }
-
-    @FXML
-    private void onDragExited(DragEvent event) {
-        dropZone.getStyleClass().remove("drag-over");
-        event.consume();
-    }
-
-    // File Management Methods
-
-    /**
-     * Filters files based on the selected source format.
-     *
-     * @param files the list of files to filter
-     * @return list of files matching the source format
-     */
-    private List<File> filterValidFiles(List<File> files) {
-        String sourceFormat = sourceFormatComboBox.getValue();
-        if (sourceFormat == null) {
-            return List.of();
-        }
-
-        return files.stream()
-                .filter(File::isFile)
-                .filter(file -> hasValidExtension(file, sourceFormat))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Checks if a file has a valid extension for the given format.
-     *
-     * @param file the file to check
-     * @param expectedFormat the expected format
-     * @return true if the file has a valid extension
-     */
-    private boolean hasValidExtension(File file, String expectedFormat) {
-        String fileName = file.getName().toLowerCase();
-        int lastDotIndex = fileName.lastIndexOf('.');
-
-        if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {
-            return false;
-        }
-
-        String extension = fileName.substring(lastDotIndex + 1);
-        return extension.equalsIgnoreCase(expectedFormat);
-    }
-
-    /**
-     * Adds files to the selection list, avoiding duplicates.
-     *
-     * @param files the files to add
-     */
-    private void addFilesToList(List<File> files) {
-        boolean hasNewFiles = selectedFiles.addAll(files);
-        if (hasNewFiles) {
-            updateFileTableView();
-        }
-    }
-
-    /**
-     * Removes a file from the selection.
-     *
-     * @param fileItem the file item to remove
-     */
-    private void removeFile(FileItem fileItem) {
-        selectedFiles.remove(fileItem.getFile());
-        updateFileTableView();
-    }
-
-    /**
-     * Updates the TableView with current file selection.
-     */
-    private void updateFileTableView() {
-        var fileItems = selectedFiles.stream()
-                .map(FileItem::new)
-                .collect(Collectors.toList());
-        fileTableView.setItems(FXCollections.observableList(fileItems));
-    }
-
-    // File Chooser Methods
-
-    /**
-     * Opens a file chooser for selecting files to convert.
-     * Enhanced to show appropriate format type for media files.
-     */
-    private void openFileChooser() {
-        String sourceFormat = sourceFormatComboBox.getValue();
-        if (sourceFormat == null) {
-            showAlert(Alert.AlertType.WARNING, "No Format Selected",
-                    "Please select a source format first",
-                    "You need to choose what type of files you want to convert before selecting files.");
-            return;
-        }
-
-        FileChooser fileChooser = new FileChooser();
-
-        // Enhanced title for media formats
-        String title;
-        if (conversionCategory == ConversionCategory.MEDIA) {
-            String formatType = AUDIO_FORMATS.contains(sourceFormat) ? "Audio" : "Video";
-            title = String.format("Select %s %s Files", sourceFormat, formatType);
-        } else {
-            title = "Select " + sourceFormat + " Files";
-        }
-        fileChooser.setTitle(title);
-
-        // Configure file extension filter
-        FileChooser.ExtensionFilter filter = new FileChooser.ExtensionFilter(
-                sourceFormat + " files", "*." + sourceFormat.toLowerCase()
-        );
-        fileChooser.getExtensionFilters().add(filter);
-
-        Window window = dropZone.getScene().getWindow();
-        List<File> files = fileChooser.showOpenMultipleDialog(window);
-        if (files != null && !files.isEmpty()) {
-            addFilesToList(files);
-        }
-    }
-
-    /**
-     * Opens a directory chooser for selecting output directory.
-     */
-    private void openDirectoryChooser() {
-        DirectoryChooser directoryChooser = new DirectoryChooser();
-        directoryChooser.setTitle("Select Output Directory");
-
-        Window window = directoryField.getScene().getWindow();
-        File directory = directoryChooser.showDialog(window);
-        if (directory != null) {
-            directoryField.setText(directory.getAbsolutePath());
-        }
-    }
-
-    // Action Handlers
-
-    /**
-     * Handles the save/convert button click.
+     * Handler for the Save File button; kicks off conversion.
      */
     @FXML
     private void onSaveClick() {
-        if (!validateInputs()) {
-            return;
-        }
-
-        // Process conversions asynchronously
-        playSaveBtnAnimation();
-        processConversions();
+        performConversion();
     }
 
     /**
-     * Validates all required inputs before processing.
-     *
-     * @return true if all inputs are valid
+     * Resets the page state except for the directory field.
      */
-    private boolean validateInputs() {
+    private void resetPageExceptDirectory() {
+        selectedFiles.clear();
+        fileTableView.getItems().clear();
+        targetFormatComboBox.getSelectionModel().clearSelection();
+        updateSaveButtonState();
+    }
+
+    /**
+     * Adds a batch of files to the table and shows errors for invalid ones.
+     *
+     * @param filesToAdd  list of File objects to attempt to convert
+     */
+    private void addFiles(List<File> filesToAdd) {
+        String selectedFormat = sourceFormatComboBox.getSelectionModel().getSelectedItem();
+        List<File> validFiles = new ArrayList<>();
+        List<File> invalidFiles = new ArrayList<>();
+
+        for (File currentFile : filesToAdd) {
+            boolean isValidFile;
+            if (selectedFormat != null) {
+                isValidFile = isValidForSelectedFormat(currentFile);
+            } else {
+                isValidFile = isValidFileType(currentFile);
+            }
+
+            if (isValidFile) {
+                validFiles.add(currentFile);
+            } else {
+                invalidFiles.add(currentFile);
+            }
+        }
+
+        // Add valid files
+        for (File validFile : validFiles) {
+            if (selectedFiles.add(validFile)) {
+                fileTableView.getItems().add(new FileItem(validFile));
+            }
+        }
+
+        // Show error for invalid files
+        if (!invalidFiles.isEmpty()) {
+            String expectedFormat = selectedFormat != null ? selectedFormat :
+                    "valid " + conversionCategory.getDisplayName().toLowerCase();
+            String invalidFilesList = buildInvalidFilesMessage(invalidFiles);
+            String errorMessage = String.format(
+                    "The following files were not added because they don't match the expected format (%s):\n%s",
+                    expectedFormat, invalidFilesList
+            );
+            showAlert("Invalid File Format", errorMessage);
+        }
+
+        updateSaveButtonState();
+    }
+
+
+    /**
+     * Updates available source formats without triggering listeners.
+     */
+    private void updateSourceFormatsQuietly() {
+        String currentSourceSelection = sourceFormatComboBox.getSelectionModel().getSelectedItem();
+        String currentTargetSelection = targetFormatComboBox.getSelectionModel().getSelectedItem();
+
+        Map<String, Set<String>> categoryMappings = ConversionMappings.MAPPINGS.get(conversionCategory);
+        if (categoryMappings != null) {
+            sourceFormatComboBox.getItems().clear();
+            sourceFormatComboBox.getItems().addAll(categoryMappings.keySet());
+
+            // Restore both selections
+            if (currentSourceSelection != null && categoryMappings.containsKey(currentSourceSelection)) {
+                sourceFormatComboBox.getSelectionModel().select(currentSourceSelection);
+
+                // Restore target selection as well
+                if (currentTargetSelection != null) {
+                    Set<String> targetFormats = categoryMappings.get(currentSourceSelection);
+                    if (targetFormats != null && targetFormats.contains(currentTargetSelection)) {
+                        targetFormatComboBox.getSelectionModel().select(currentTargetSelection);
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Updates available source formats.
+     */
+    private void updateSourceFormats() {
+        updateSourceFormatsQuietly();
+    }
+
+
+
+    /**
+     * Removes a file from the conversion list.
+     */
+    private void removeFile(File fileToRemove) {
+        selectedFiles.remove(fileToRemove);
+
+        // Remove from table view using traditional loop for better readability
+        List<FileItem> itemsToRemove = new ArrayList<>();
+        for (FileItem fileItem : fileTableView.getItems()) {
+            if (fileItem.getFile().equals(fileToRemove)) {
+                itemsToRemove.add(fileItem);
+            }
+        }
+        fileTableView.getItems().removeAll(itemsToRemove);
+
+        updateSaveButtonState();
+        // Only update source formats if no files remain
         if (selectedFiles.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "No Files Selected",
-                    "Please add files to convert",
-                    "You need to select at least one file to convert.");
-            return false;
+            updateSourceFormats();
+        }
+    }
+
+
+    /**
+     * Opens file chooser for manual file selection.
+     */
+    private void openFileChooser() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select Files to Convert");
+
+        String selectedFormat = sourceFormatComboBox.getSelectionModel().getSelectedItem();
+
+        if (selectedFormat != null) {
+            FileChooser.ExtensionFilter fileFilter = new FileChooser.ExtensionFilter(
+                    selectedFormat + " Files",
+                    "*." + selectedFormat.toLowerCase()
+            );
+            fileChooser.getExtensionFilters().add(fileFilter);
+        } else {
+            List<String> validExtensions = getValidExtensions();
+            if (!validExtensions.isEmpty()) {
+                String[] extensionArray = new String[validExtensions.size()];
+                for (int i = 0; i < validExtensions.size(); i++) {
+                    extensionArray[i] = "*." + validExtensions.get(i).toLowerCase();
+                }
+
+                FileChooser.ExtensionFilter categoryFilter = new FileChooser.ExtensionFilter(
+                        conversionCategory.getDisplayName() + " Files", extensionArray);
+                fileChooser.getExtensionFilters().add(categoryFilter);
+            }
+        }
+
+        List<File> selectedFilesList = fileChooser.showOpenMultipleDialog(dropZone.getScene().getWindow());
+        if (selectedFilesList != null && !selectedFilesList.isEmpty()) {
+            addFiles(selectedFilesList);
+        }
+    }
+
+
+    /**
+     * Gets file extension from filename.
+     */
+    private String getFileExtension(String fileName) {
+        int lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex > 0 && lastDotIndex < fileName.length() - 1) {
+            return fileName.substring(lastDotIndex + 1);
+        }
+        return "";
+    }
+
+    /**
+     * Validates if file type is valid for current conversion category.
+     */
+    private boolean isValidFileType(File file) {
+        String extension = getFileExtension(file.getName()).toUpperCase();
+        Map<String, Set<String>> categoryMappings = ConversionMappings.MAPPINGS.get(conversionCategory);
+        return categoryMappings != null && categoryMappings.containsKey(extension);
+    }
+
+
+    /**
+     * Validates if a file matches the selected source format.
+     */
+    private boolean isValidForSelectedFormat(File file) {
+        String selectedFormat = sourceFormatComboBox.getSelectionModel().getSelectedItem();
+        if (selectedFormat == null) {
+            return isValidFileType(file);
+        }
+
+        String fileExtension = getFileExtension(file.getName()).toUpperCase();
+        return selectedFormat.equals(fileExtension);
+    }
+
+    /**
+     * Gets valid extensions for current category.
+     */
+    private List<String> getValidExtensions() {
+        Map<String, Set<String>> categoryMappings = ConversionMappings.MAPPINGS.get(conversionCategory);
+        if (categoryMappings == null) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(categoryMappings.keySet());
+    }
+
+    /**
+     * Builds invalid files message.
+     */
+    private String buildInvalidFilesMessage(List<File> invalidFiles) {
+        StringBuilder messageBuilder = new StringBuilder();
+        for (int i = 0; i < invalidFiles.size(); i++) {
+            if (i > 0) {
+                messageBuilder.append("\n");
+            }
+            messageBuilder.append(invalidFiles.get(i).getName());
+        }
+        return messageBuilder.toString();
+    }
+
+
+    /**
+     * Opens directory chooser for output directory selection.
+     */
+    private void chooseOutputDirectory() {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Choose Output Directory");
+
+        File selectedDirectory = directoryChooser.showDialog(browseDirBtn.getScene().getWindow());
+        if (selectedDirectory != null) {
+            directoryField.setText(selectedDirectory.getAbsolutePath());
+        }
+    }
+
+
+    /**
+     * Updates the save button state based on current selections.
+     */
+    private void updateSaveButtonState() {
+        boolean hasFiles = !selectedFiles.isEmpty();
+        boolean hasSourceFormat = sourceFormatComboBox.getSelectionModel().getSelectedItem() != null;
+        boolean hasTargetFormat = targetFormatComboBox.getSelectionModel().getSelectedItem() != null;
+        boolean hasOutputDirectory = !directoryField.getText().trim().isEmpty();
+
+        saveBtn.setDisable(!(hasFiles && hasSourceFormat && hasTargetFormat && hasOutputDirectory));
+    }
+
+
+    /**
+     * Performs the actual file conversion.
+     */
+    private void performConversion() {
+        if (selectedFiles.isEmpty()) {
+            showAlert("No Files", "Please select files to convert.");
+            return;
         }
 
         String sourceFormat = sourceFormatComboBox.getValue();
         String targetFormat = targetFormatComboBox.getValue();
+        String outputDir = directoryField.getText();
 
         if (sourceFormat == null || targetFormat == null) {
-            showAlert(Alert.AlertType.WARNING, "Missing Format Selection",
-                    "Please select both source and target formats",
-                    "You need to choose what format to convert from and to.");
-            return false;
+            showAlert("Missing Format", "Please select both source and target formats.");
+            return;
         }
 
-        String outputDirectory = directoryField.getText();
-        if (outputDirectory.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "No Output Directory",
-                    "Please select an output directory",
-                    "You need to choose where to save the converted files.");
-            return false;
+        if (outputDir == null || outputDir.trim().isEmpty()) {
+            showAlert("Missing Directory", "Please select an output directory.");
+            return;
         }
 
-        return true;
-    }
+        File outputDirectory = new File(outputDir);
+        if (!outputDirectory.exists() || !outputDirectory.isDirectory()) {
+            showAlert("Invalid Directory", "The selected output directory does not exist.");
+            return;
+        }
 
-    /**
-     * Processes file conversions asynchronously.
-     */
-    private void processConversions() {
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                // Simulate conversion process
-                Thread.sleep(2000); // Replace with actual conversion logic
-                return true;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-        }).thenAcceptAsync(success -> {
-            Platform.runLater(() -> {
-                resetSaveButton();
-                if (success) {
-                    playCompletionAnimation();
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Conversion Complete",
-                            "Files have been successfully converted and saved.");
-                } else {
-                    showAlert(Alert.AlertType.ERROR, "Error", "Conversion Failed",
-                            "An error occurred during file conversion.");
+        // Perform conversion in background thread (with progress dialog)
+        Task<Void> conversionTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                int totalFiles = selectedFiles.size();
+                int processedFiles = 0;
+
+                for (File inputFile : selectedFiles) {
+                    String baseName = inputFile.getName();
+                    int dotIndex = baseName.lastIndexOf('.');
+                    if (dotIndex > 0) {
+                        baseName = baseName.substring(0, dotIndex);
+                    }
+
+                    File outputFile = new File(outputDirectory, baseName + "." + targetFormat.toLowerCase());
+
+                    // Make sure we don't overwrite the input file
+                    if (outputFile.equals(inputFile)) {
+                        outputFile = new File(outputDirectory, baseName + "_converted." + targetFormat.toLowerCase());
+                    }
+
+                    ConverterRouter.convert(inputFile, outputFile, targetFormat, conversionCategory);
+
+                    processedFiles++;
+                    // update the message so the dialog shows "Converting file X of Y"
+                    updateMessage("Converting file " + processedFiles + " of " + totalFiles);
+                    final int completed = processedFiles;
+                    Platform.runLater(() -> updateProgress(completed, totalFiles));
                 }
-            });
-        }).exceptionally(throwable -> {
-            Platform.runLater(() -> {
-                resetSaveButton();
-                showAlert(Alert.AlertType.ERROR, "Error", "Conversion Failed",
-                        "An unexpected error occurred: " + throwable.getMessage());
-            });
-            return null;
-        });
-    }
 
+                return null;
+            }
 
-    /**
-     * Plays a subtle completion animation to indicate successful file conversion.
-     */
-    private void playCompletionAnimation() {
-        // Create a gentle pulse animation
-        Timeline pulseAnimation = new Timeline(
-                new KeyFrame(Duration.ZERO,
-                        new KeyValue(saveBtn.scaleXProperty(), 1.0, Interpolator.EASE_BOTH),
-                        new KeyValue(saveBtn.scaleYProperty(), 1.0, Interpolator.EASE_BOTH),
-                        new KeyValue(saveBtn.opacityProperty(), 1.0, Interpolator.EASE_BOTH)
-                ),
-                new KeyFrame(Duration.millis(200),
-                        new KeyValue(saveBtn.scaleXProperty(), 1.05, Interpolator.EASE_BOTH),
-                        new KeyValue(saveBtn.scaleYProperty(), 1.05, Interpolator.EASE_BOTH),
-                        new KeyValue(saveBtn.opacityProperty(), 0.9, Interpolator.EASE_BOTH)
-                ),
-                new KeyFrame(Duration.millis(400),
-                        new KeyValue(saveBtn.scaleXProperty(), 1.0, Interpolator.EASE_BOTH),
-                        new KeyValue(saveBtn.scaleYProperty(), 1.0, Interpolator.EASE_BOTH),
-                        new KeyValue(saveBtn.opacityProperty(), 1.0, Interpolator.EASE_BOTH)
-                )
-        );
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> {
+                    showAlert("Conversion Complete", "All files have been converted successfully.");
+                    resetPageExceptDirectory();
+                });
+            }
 
-        // Temporarily change button text and add a checkmark icon
-        String originalText = saveBtn.getText();
-        FontIcon checkIcon = new FontIcon("mdi2c-check-circle");
-        checkIcon.setIconSize(16);
-        checkIcon.setIconColor(Paint.valueOf(darkMode ? "#4caf50" : "#2e7d32"));
+            @Override
+            protected void failed() {
+                Platform.runLater(() -> {
+                    Throwable exception = getException();
+                    String message = exception != null ? exception.getMessage() : "Unknown error occurred";
+                    showAlert("Conversion Failed", "Error during conversion: " + message);
+                });
+            }
+        };
 
-        saveBtn.setText("Complete!");
-        saveBtn.setGraphic(checkIcon);
+        // create the dialog
+        ProgressDialog progressDialog = new ProgressDialog(conversionTask);
 
-        // Add temporary success styling
-        saveBtn.getStyleClass().add("completion-success");
+        // kick off conversion *before* showing the dialog
+        Thread conversionThread = new Thread(conversionTask);
+        conversionThread.setDaemon(true);
+        conversionThread.start();
 
-        pulseAnimation.setOnFinished(e -> {
-            // Reset after animation with a delay
-            Timeline resetDelay = new Timeline(new KeyFrame(Duration.millis(1500), ev -> {
-                saveBtn.setText(originalText);
-                saveBtn.setGraphic(null);
-                saveBtn.getStyleClass().remove("completion-success");
-            }));
-            resetDelay.play();
-        });
+        progressDialog.show();
 
-        pulseAnimation.play();
-    }
-
-
-
-    /**
-     * Displays an alert dialog with the specified parameters.
-     */
-    private void showAlert(Alert.AlertType type, String title, String header, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
-    /**
-     * Animates the save button during conversion process.
-     */
-    private void playSaveBtnAnimation() {
-        saveBtn.setDisable(true);
-        saveBtn.setText("Converting...");
-    }
-
-    /**
-     * Resets the save button to its original state.
-     */
-    private void resetSaveButton() {
-        saveBtn.setText("Save File");
+        // re-enable Save when done
         saveBtn.setDisable(false);
+
     }
 
-    // Theme Management
+    /**
+     * Goes back to the start view.
+     */
+    private void goBackToStartView() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/test/truinconv/start-view.fxml"));
+            Parent startRoot = loader.load();
+
+            Scene currentScene = titleLabel.getScene();
+            Scene startScene = new Scene(startRoot, currentScene.getWidth(), currentScene.getHeight());
+
+            // Copy stylesheets from current scene
+            startScene.getStylesheets().addAll(currentScene.getStylesheets());
+
+            Stage stage = (Stage) currentScene.getWindow();
+            stage.setScene(startScene);
+
+            // Apply current theme to new scene
+            if (themeManager != null) {
+                themeManager.applyTheme(startScene);
+            }
+
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Failed to load start view", e);
+            showAlert("Navigation Error", "Could not return to the start view.");
+        }
+    }
 
     /**
-     * Toggles between dark and light themes.
+     * Shows a simple information Alert with the given title and message.
      *
-     * @param dark true for dark mode, false for light mode
+     * @param alertTitle   the window title of the Alert
+     * @param alertMessage the body text of the Alert
      */
-    public void toggleTheme(boolean dark) {
-        darkMode = dark;
-
-        // Update the root style class
-        if (darkMode) {
-            dropZone.getScene().getRoot().getStyleClass().add("dark-mode");
-        } else {
-            dropZone.getScene().getRoot().getStyleClass().remove("dark-mode");
-        }
-
-        // Update all icon colors
-        updateThemeIcon();
-        updateBackButtonIcon();
-        updateSwapButtonIcon();
+    private void showAlert(String alertTitle, String alertMessage) {
+        Alert informationAlert = new Alert(Alert.AlertType.INFORMATION);
+        informationAlert.setTitle(alertTitle);
+        informationAlert.setHeaderText(null);
+        informationAlert.setContentText(alertMessage);
+        informationAlert.showAndWait();
     }
 
-
-    /**
-     * Updates the theme toggle button icon based on current theme.
-     */
-    public void updateThemeIcon() {
-        if (themeToggleBtn.getGraphic() instanceof FontIcon icon) {
-            icon.setIconLiteral(darkMode ? "mdi2w-white-balance-sunny" : "mdi2m-moon-waning-crescent");
-            icon.setIconColor(Paint.valueOf(darkMode ? "#ffd740" : "#888"));
-        }
-    }
-
-
-    /**
-     * Updates swap button (arrow) icon color based on current theme.
-     */
-    private void updateSwapButtonIcon() {
-        if (arrowIcon != null) {
-            arrowIcon.setIconColor(Paint.valueOf(darkMode ? "#ffd740" : "#3d3246"));
-        }
-    }
-
-
-    /**
-     * Sets the title text based on the conversion type.
-     *
-     * @param btnText the button text that triggered the conversion type
-     */
-    public void setButtonTextAsTitle(String btnText) {
-        titleLabel.setText(btnText + " Conversion");
-    }
 }

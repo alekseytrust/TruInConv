@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.scene.control.*?>
-<?import javafx.scene.input.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
-<?import javafx.geometry.Pos?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
+<!-- Conversion screen layout -->
 <StackPane xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="test.truinconv.ConversionController">
     <BorderPane>
+        <!-- Top toolbar with back and theme toggle -->
         <top>
             <HBox alignment="TOP_CENTER">
                 <Button fx:id="backButton"
@@ -22,36 +21,54 @@
                     </graphic>
                 </Button>
                 <Region HBox.hgrow="ALWAYS"/>
-                <ToggleButton fx:id="themeToggleBtn" styleClass="theme-toggle-btn" focusTraversable="false">
+                <ToggleButton fx:id="themeToggleBtn"
+                              styleClass="theme-toggle-btn"
+                              focusTraversable="false">
                     <graphic>
-                        <FontIcon iconLiteral="mdi2m-moon-waning-crescent" iconSize="24"/>
+                        <FontIcon iconLiteral="mdi2m-moon-waning-crescent"
+                                  iconSize="24"/>
                     </graphic>
                 </ToggleButton>
             </HBox>
         </top>
+
+        <!-- Main conversion controls -->
         <center>
             <VBox fx:id="mainVBox" alignment="CENTER" spacing="24">
-                <!-- Title dynamically updated (ex: "Image Conversion") -->
-                <Label fx:id="titleLabel" alignment="CENTER" styleClass="title-label" text="Conversion"/>
+                <!-- Dynamic title label -->
+                <Label fx:id="titleLabel"
+                       alignment="CENTER"
+                       styleClass="title-label"
+                       text="Conversion"/>
 
-                <!-- After the title label and before the dropZone -->
+                <!-- Format selection and swap -->
                 <HBox spacing="20" alignment="CENTER" styleClass="format-selection-container">
                     <VBox alignment="CENTER" spacing="5" styleClass="format-selection">
                         <Label text="Convert from:" styleClass="format-label"/>
-                        <ComboBox fx:id="sourceFormatComboBox" promptText="Select source format" styleClass="format-combo"/>
+                        <ComboBox fx:id="sourceFormatComboBox"
+                                  promptText="Select source format"
+                                  styleClass="format-combo"/>
                     </VBox>
-                    <Button fx:id="swapButton" styleClass="swap-button" onAction="#onSwapFormats" focusTraversable="false">
+                    <Button fx:id="swapButton"
+                            styleClass="swap-button"
+                            onAction="#onSwapFormats"
+                            focusTraversable="false">
                         <graphic>
-                            <FontIcon fx:id="arrowIcon" iconLiteral="mdi2a-arrow-right" iconSize="24" styleClass="arrow-icon" />
+                            <FontIcon fx:id="arrowIcon"
+                                      iconLiteral="mdi2a-arrow-right"
+                                      iconSize="24"
+                                      styleClass="arrow-icon" />
                         </graphic>
                     </Button>
                     <VBox alignment="CENTER" spacing="5" styleClass="format-selection">
                         <Label text="Convert to:" styleClass="format-label"/>
-                        <ComboBox fx:id="targetFormatComboBox" promptText="Select target format" styleClass="format-combo"/>
+                        <ComboBox fx:id="targetFormatComboBox"
+                                  promptText="Select target format"
+                                  styleClass="format-combo"/>
                     </VBox>
                 </HBox>
 
-                <!-- Drag & Drop Zone -->
+                <!-- File drop zone -->
                 <StackPane fx:id="dropZone"
                            prefWidth="340" prefHeight="100"
                            onDragOver="#onDragOver"
@@ -59,16 +76,21 @@
                            onDragEntered="#onDragEntered"
                            onDragExited="#onDragExited"
                            alignment="CENTER">
-                    <Label fx:id="dropZoneLabel" text="Drop file here or click to select"/>
+                    <Label fx:id="dropZoneLabel"
+                           text="Drop file here or click to select"/>
                 </StackPane>
 
-                <!-- TableView for displaying selected files with Remove button -->
+                <!-- Selected files table -->
                 <TableView fx:id="fileTableView"
                            prefHeight="110"
                            VBox.vgrow="ALWAYS">
                     <columns>
                         <TableColumn fx:id="fileNameColumn" text="File Name" />
-                        <TableColumn fx:id="removeButtonColumn" text="" minWidth="60" maxWidth="60" style="-fx-alignment: CENTER_LEFT;" />
+                        <TableColumn fx:id="removeButtonColumn"
+                                     text=""
+                                     minWidth="60"
+                                     maxWidth="60"
+                                     style="-fx-alignment: CENTER_LEFT;" />
                     </columns>
                     <placeholder>
                         <Label text="No files added." />
@@ -78,23 +100,28 @@
                     </columnResizePolicy>
                 </TableView>
 
-                <!-- Output Directory Picker -->
+                <!-- Output directory selector -->
                 <HBox spacing="11" alignment="CENTER" styleClass="directory-picker-container">
                     <TextField fx:id="directoryField"
                                promptText="Choose output directory..."
                                editable="false"
                                minWidth="180"
                                styleClass="directory-field"/>
-                    <Button fx:id="browseDirBtn" text="Browse" styleClass="circle-btn"/>
+                    <Button fx:id="browseDirBtn"
+                            text="Browse"
+                            styleClass="circle-btn"/>
                 </HBox>
 
-                <!-- Save Button -->
-                <Button fx:id="saveBtn" text="Save File"
+                <!-- Save action button -->
+                <Button fx:id="saveBtn"
+                        text="Save File"
                         styleClass="circle-btn"
                         minWidth="110"
                         onAction="#onSaveClick"/>
             </VBox>
         </center>
+
+        <!-- Global padding around content -->
         <padding>
             <Insets top="15" right="25" bottom="15" left="25"/>
         </padding>
