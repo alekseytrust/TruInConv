@@ -17,38 +17,34 @@
     </properties>
 
     <dependencies>
-        <!-- For PDF operations -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <version>2.0.29</version>
-        </dependency>
-
-        <!-- For Office document operations -->
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.4.0</version>
-        </dependency>
-
-        <!-- For audio conversion (JAVE2, core library) -->
+        <!-- For audio/video conversion (JAVE2, core library) -->
         <dependency>
             <groupId>ws.schild</groupId>
             <artifactId>jave-core</artifactId>
             <version>3.5.0</version>
         </dependency>
-        <!-- For audio conversion Windows binaries (omit if not needed) -->
+        
+        <!-- For audio/video conversion Windows binaries (omit if not needed) -->
         <dependency>
             <groupId>ws.schild</groupId>
             <artifactId>jave-nativebin-win64</artifactId>
-            <version>3.3.1</version>
+            <version>3.5.0</version>
             <scope>runtime</scope>
         </dependency>
-        <!-- Add other platform-specific binaries as needed -->
+        
+        <!-- Updated macOS binaries with Apple Silicon support -->
         <dependency>
             <groupId>ws.schild</groupId>
             <artifactId>jave-nativebin-osx64</artifactId>
-            <version>3.3.1</version>
+            <version>3.5.0</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Add Apple Silicon specific binaries -->
+        <dependency>
+            <groupId>ws.schild</groupId>
+            <artifactId>jave-nativebin-osxm1</artifactId>
+            <version>3.5.0</version>
             <scope>runtime</scope>
         </dependency>
 
@@ -116,8 +112,6 @@
             <artifactId>ikonli-javafx</artifactId>
             <version>12.3.1</version>
         </dependency>
-
-        <!-- the Material-Design-2 pack (prefix mdi2m-) -->
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>
             <artifactId>ikonli-materialdesign2-pack</artifactId>
@@ -128,7 +122,19 @@
             <artifactId>bootstrapfx-core</artifactId>
             <version>0.4.0</version>
         </dependency>
-        <!-- Rest of dependencies would continue here -->
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -136,14 +142,19 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.13.0</version>
                 <configuration>
-                    <source>21</source>
-                    <target>21</target>
+                    <release>21</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>test.truinconv.ConversionApplication</mainClass>
                 </configuration>
             </plugin>
         </plugins>
     </build>
-
-    <!-- Build configuration continues... -->
 </project>

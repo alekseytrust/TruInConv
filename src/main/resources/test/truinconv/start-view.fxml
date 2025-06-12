@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
@@ -8,15 +7,17 @@
 <StackPane xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="test.truinconv.StartViewController">
     <BorderPane>
+        <!-- Main content -->
         <center>
             <VBox alignment="CENTER" spacing="24">
+                <!-- Title -->
                 <Label fx:id="title"
                        alignment="CENTER"
                        text="TruInConv"
                        maxWidth="Infinity"
                        wrapText="true"
                        styleClass="title-label"/>
-                <!-- Use HBox as the default container - we'll switch this dynamically -->
+                <!-- Buttons -->
                 <HBox fx:id="buttonPane"
                       alignment="CENTER"
                       spacing="36">
@@ -24,11 +25,12 @@
                         <Insets top="20" right="20" bottom="20" left="20"/>
                     </padding>
                     <Button fx:id="imageButton" text="Images" styleClass="circle-btn"/>
-                    <Button fx:id="audioButton" text="Media" styleClass="circle-btn"/>
-                    <Button fx:id="videoButton" text="Docs" styleClass="circle-btn"/>
+                    <Button fx:id="audioButton" text="Audio" styleClass="circle-btn"/>
+                    <Button fx:id="videoButton" text="Video" styleClass="circle-btn"/>
                 </HBox>
             </VBox>
         </center>
+        <!-- Theme toggle -->
         <top>
             <HBox alignment="TOP_RIGHT">
                 <Region HBox.hgrow="ALWAYS"/>
@@ -43,6 +45,7 @@
                 </ToggleButton>
             </HBox>
         </top>
+        <!-- Padding -->
         <padding>
             <Insets top="15" right="25" bottom="15" left="25"/>
         </padding>
