@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Aleksey Trust
+ * This file is licensed under the MIT License.
+ * See the LICENSE file in the project root for full license information.
+ */
+
 package test.truinconv;
 
 import javafx.concurrent.Task;
@@ -14,7 +20,7 @@ import javafx.stage.StageStyle;
 /**
  * Modal dialog displaying the progress of a file conversion task.
  * Binds a progress bar and status label to the task, and closes
- * automatically when the task completes, fails, or is cancelled.
+ * automatically when the task completes, fails, or is canceled.
  */
 public final class ProgressDialog {
     // Width of the bound ProgressBar

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Aleksey Trust
+ * This file is licensed under the MIT License.
+ * See the LICENSE file in the project root for full license information.
+ */
+
 module test.truinconv {
     // JavaFX core modules for controls and FXML support
     requires javafx.controls;          // UI controls (Buttons, Labels, TableView, etc.)
